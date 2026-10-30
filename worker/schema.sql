@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS groups (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tag TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  o INTEGER DEFAULT 0,
+  goal TEXT DEFAULT '',
+  status TEXT DEFAULT 'none',
+  memo TEXT DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  g TEXT NOT NULL,
+  t TEXT NOT NULL,
+  n TEXT DEFAULT '',
+  s TEXT DEFAULT '',
+  d TEXT DEFAULT '',
+  owner TEXT DEFAULT '',
+  done INTEGER DEFAULT 0,
+  o INTEGER DEFAULT 0,
+  by TEXT DEFAULT '',
+  at TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_g ON tasks(g);
