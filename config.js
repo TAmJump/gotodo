@@ -1,1 +1,1 @@
-window.GOTODO_API = "REPLACE_WITH_WORKER_URL";
+window.GOTODO_API = "https://gotodo-api.animalb001.workers.dev";
