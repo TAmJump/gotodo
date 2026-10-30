@@ -8,4 +8,4 @@ ALLOWED_ORIGINS = "https://todo.115en.com,https://tamjump.github.io"
 [[d1_databases]]
 binding = "DB"
 database_name = "gotodo-db"
-database_id = "REPLACE_WITH_DATABASE_ID"
+database_id = "9df28e56-f665-4fcf-b4f6-cc66fb4a45fb"
