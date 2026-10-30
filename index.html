@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>事業再編TODO 2026-2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 上部に全体進捗とビュー切替（一覧・ガント・カレンダー・利益化）。データは共有DBから読み、グループ全員で更新 */
+:root{
+  --bg:#f7f8f5; --surface:#ffffff; --fg:#1d2723; --muted:#5f6d67; --line:#d9dfd9; --line-soft:#edf0ec;
+  --accent:#0f766e; --accent-soft:#e3f1ee; --warn:#b45309; --warn-soft:#fdf1e2; --late:#b42318; --late-soft:#fdebe9;
+  --gold:#a16207; --gold-soft:#fbf3dc;
+  --font-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.7 var(--font-body)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:grid;gap:6px;margin-bottom:12px}
+h1{font-size:24px;margin:0;text-wrap:balance;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:13px}
+.overall{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:10px 0 2px}
+.bar{flex:1 1 220px;height:8px;border:1px solid var(--line);border-radius:99px;background:var(--surface);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0}
+.count{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:10px;overflow-x:auto}
+nav.tabs a{padding:8px 14px;color:var(--muted);text-decoration:none;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+.tools{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:12px 0 4px}
+.tools select,.tools input[type=search]{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.tools label{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer}
+.btn{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--accent);border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}
+.btn.ghost{background:var(--surface);color:var(--accent)}
+.btn.danger{border-color:var(--late);background:var(--surface);color:var(--late)}
+.btn:disabled{opacity:.5;cursor:default}
+.status{font-size:12px;color:var(--muted);margin-left:auto}
+.status.err{color:var(--late)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--muted);background:var(--surface);margin-top:16px}
+/* list */
+section.g{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:14px}
+.gh{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:12px 18px 10px;border-bottom:1px solid var(--line)}
+.gh h2{font-size:16px;margin:0}
+.gc{font-family:var(--font-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tag{font-size:11px;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 6px}
+.goal{font-size:11px;color:var(--gold);border:1px solid var(--gold);background:var(--gold-soft);border-radius:4px;padding:0 6px}
+.gh .add{margin-left:auto;font-size:12px;padding:2px 10px}
+.gnote{flex-basis:100%;font-size:13px;color:var(--muted);margin:2px 0 0}
+ul{list-style:none;margin:0;padding:0}
+li.task{display:grid;grid-template-columns:22px 1fr auto;gap:4px 12px;align-items:start;padding:10px 18px;border-top:1px solid var(--line-soft)}
+li.task:first-child{border-top:0}
+li.task input{width:18px;height:18px;margin:3px 0 0;accent-color:var(--accent);cursor:pointer}
+.t{min-width:0;cursor:pointer}
+.t b{font-weight:500}
+.t .n{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.owner{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 8px;margin-left:6px;vertical-align:1px}
+li.done .t b{color:var(--muted);text-decoration:line-through}
+.dates{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.range{font-family:var(--font-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.due{font-family:var(--font-mono);font-size:12px;border:1px solid var(--line);border-radius:4px;padding:1px 7px;color:var(--muted);font-variant-numeric:tabular-nums}
+.due.soon{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.due.late{color:var(--late);border-color:var(--late);background:var(--late-soft)}
+li.done .due{color:var(--muted);border-color:var(--line);background:none}
+.hideDone li.done,.hideDone .grow.done{display:none}
+@media (max-width:560px){li.task{grid-template-columns:22px 1fr}.dates{grid-column:2}.range{display:none}}
+/* gantt */
+.gwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:14px}
+.gantt{position:relative;min-width:max-content}
+.grow{display:grid;grid-template-columns:var(--lw) var(--tw);border-top:1px solid var(--line-soft);min-height:30px}
+.grow.ghead{position:sticky;top:0;background:var(--surface);z-index:3;border-top:0;border-bottom:1px solid var(--line)}
+.glabel{position:sticky;left:0;background:var(--surface);z-index:2;padding:5px 12px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line);cursor:pointer}
+.grow.gsec .glabel{font-weight:700;font-size:13px;background:var(--line-soft);cursor:default}
+.grow.gsec{background:var(--line-soft)}
+.gtrack{position:relative}
+.mcell{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-soft)}
+.mlabel{position:absolute;top:6px;font-size:11px;color:var(--muted);font-family:var(--font-mono);padding-left:6px;white-space:nowrap}
+.gbar{position:absolute;top:8px;height:14px;border-radius:4px;background:var(--accent);min-width:6px;cursor:pointer}
+.gbar.soon{background:var(--warn)}
+.gbar.late{background:var(--late)}
+.gbar.done{background:var(--line)}
+.gspan{position:absolute;top:12px;height:6px;border-radius:3px;background:var(--accent-soft);border:1px solid var(--accent)}
+.diamond{position:absolute;top:7px;width:14px;height:14px;background:var(--gold);transform:translateX(-7px) rotate(45deg);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--gold)}
+.today{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--late);z-index:1;pointer-events:none}
+.today span{position:absolute;top:2px;left:3px;font-size:10px;color:var(--late);font-family:var(--font-mono);white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:5px;vertical-align:0}
+/* calendar */
+.mstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;margin-top:14px}
+.mbtn{font:inherit;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;cursor:pointer;color:var(--fg)}
+.mbtn b{display:block;font-size:13px;font-weight:500}
+.mbtn span{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.mbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);margin-top:12px}
+.cal .wd{font-size:11px;color:var(--muted);text-align:center;padding:4px;border-bottom:1px solid var(--line);background:var(--line-soft)}
+.cell{min-height:92px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:4px;min-width:0}
+.cell:nth-child(7n){border-right:0}
+.cell.out{background:var(--bg)}
+.cell.is-today{outline:2px solid var(--late);outline-offset:-2px}
+.dn{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.chip{display:block;font-size:11px;line-height:1.4;padding:1px 5px;margin-top:2px;border-radius:3px;background:var(--accent-soft);color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0;width:100%;text-align:left;font-family:inherit}
+.chip.late{background:var(--late-soft)}
+.chip.soon{background:var(--warn-soft)}
+.chip.done{color:var(--muted);text-decoration:line-through;background:var(--line-soft)}
+.cnt{display:none;font-family:var(--font-mono);font-size:11px;color:var(--accent)}
+@media (max-width:640px){.cell{min-height:52px}.chip{display:none}.cnt{display:block}}
+.agenda{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.agenda h3{font-size:14px;margin:0;padding:10px 18px;border-bottom:1px solid var(--line)}
+/* profit */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px}
+.pcard{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:14px 16px;display:grid;gap:8px;min-width:0}
+.pcard h3{font-size:15px;margin:0}
+.pcard label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
+.pcard input,.pcard select,.pcard textarea{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);width:100%}
+.pcard textarea{min-height:56px;resize:vertical}
+.pill{justify-self:start;font-size:11px;border-radius:99px;padding:0 9px;border:1px solid var(--line);color:var(--muted)}
+.pill.prep{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.pill.revenue{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.pill.profit{color:var(--gold);border-color:var(--gold);background:var(--gold-soft)}
+.psum{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.psum div{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:8px 14px;font-size:12px;color:var(--muted)}
+.psum b{display:block;font-family:var(--font-mono);font-size:20px;color:var(--fg);font-weight:500}
+.mini{height:6px;border-radius:99px;background:var(--line-soft);overflow:hidden}
+.mini i{display:block;height:100%;background:var(--accent)}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(29,39,35,.35);z-index:20;display:grid;place-items:center;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px 20px;display:grid;gap:10px}
+.dlg h2{font-size:17px;margin:0}
+.dlg label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
+.dlg input,.dlg select,.dlg textarea{font:inherit;font-size:14px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);width:100%}
+.dlg textarea{min-height:64px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dlg .chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--fg)}
+.dlg .chk input{width:auto}
+.acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:4px}
+.acts .btn.danger{margin-right:auto}
+.meta{font-size:11px;color:var(--muted)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.gbar,.chip,.mbtn{transition:filter .15s}.gbar:hover,.chip:hover{filter:brightness(.95)}}
+.login{position:fixed;inset:0;background:var(--bg);z-index:30;display:grid;place-items:center;padding:16px}
+.login form{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(420px,100%);padding:22px;display:grid;gap:12px}
+.login h2{font-size:18px;margin:0}
+.login p{margin:0;font-size:13px;color:var(--muted)}
+.login label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
+.login input{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.me{font-size:12px;color:var(--muted)}
+.me button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0 0 0 4px}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>事業再編TODO 2026-2027</h1>
+    <div class="sub">2026年11月〜2027年10月の12か月で全事業の利益化を目指す実行計画。グループ全員で確認・更新できます</div>
+    <div class="me" id="me"></div>
+    <div class="overall"><div class="bar"><i id="ovbar"></i></div><span class="count" id="ovcount">読み込み中</span></div>
+    <nav class="tabs" aria-label="表示切替">
+      <a href="#list" data-view="list">一覧</a>
+      <a href="#gantt" data-view="gantt">ガントチャート</a>
+      <a href="#calendar" data-view="calendar">カレンダー</a>
+      <a href="#profit" data-view="profit">利益化</a>
+    </nav>
+    <div class="tools">
+      <select id="fgroup" aria-label="事業で絞り込み"><option value="">すべての事業</option></select>
+      <input type="search" id="fq" placeholder="タスク・担当で検索" aria-label="検索">
+      <label for="hide"><input type="checkbox" id="hide">完了を隠す</label>
+      <button class="btn" id="addTask" type="button">タスクを追加</button>
+      <span class="status" id="status"></span>
+    </div>
+  </header>
+  <main id="app"><div class="empty">タスクを読み込んでいます。</div></main>
+</div>
+<div class="overlay" id="modal" hidden>
+  <form class="dlg" id="form">
+    <h2 id="ftitle">タスクを編集</h2>
+    <label>事業<select id="f_g"></select></label>
+    <label>タスク名<input id="f_t" required></label>
+    <label>メモ<textarea id="f_n"></textarea></label>
+    <div class="row2"><label>開始日<input type="date" id="f_s"></label><label>期限<input type="date" id="f_d" required></label></div>
+    <label>担当<input id="f_o" placeholder="例：大下、後藤先生"></label>
+    <label class="chk"><input type="checkbox" id="f_done">完了</label>
+    <div class="meta" id="fmeta"></div>
+    <div class="acts">
+      <button type="button" class="btn danger" id="fdel">削除</button>
+      <button type="button" class="btn ghost" id="fcancel">キャンセル</button>
+      <button type="submit" class="btn" id="fsave">保存</button>
+    </div>
+  </form>
+</div>
+<div class="login" id="login" hidden>
+  <form id="loginForm">
+    <h2>事業再編TODO</h2>
+    <p>グループ共通のパスコードと、更新履歴に表示する名前を入力してください。</p>
+    <label>パスコード<input type="password" id="l_pass" autocomplete="current-password" required></label>
+    <label>表示名<input id="l_name" placeholder="例：大下" required></label>
+    <p id="l_err" style="color:var(--late)"></p>
+    <button class="btn" type="submit">開く</button>
+  </form>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
