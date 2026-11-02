@@ -4,6 +4,10 @@
   var HOLI={"2026-11-03": "文化の日", "2026-11-23": "勤労感謝の日", "2027-01-01": "元日", "2027-01-11": "成人の日", "2027-02-11": "建国記念の日", "2027-02-23": "天皇誕生日", "2027-03-21": "春分の日", "2027-03-22": "振替休日", "2027-04-29": "昭和の日", "2027-05-03": "憲法記念日", "2027-05-04": "みどりの日", "2027-05-05": "こどもの日", "2027-07-19": "海の日", "2027-08-11": "山の日", "2027-09-20": "敬老の日", "2027-09-23": "秋分の日", "2027-10-11": "スポーツの日", "2027-11-03": "文化の日", "2027-11-23": "勤労感謝の日"};
   function offDay(k){var d=pd(k);return !!HOLI[k]||d.getDay()===0||d.getDay()===6;}
   function prevWork(k){var d=pd(k);while(offDay(ymd(d)))d=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);return ymd(d);}
+  var GCOL={oasis:'#0f766e',sakae:'#2F4C8F',goto:'#7B4FA0',gotokitei:'#A07CC0',npo:'#D9772B',kumiai:'#3A8A62',gms:'#C8467A',gmskitei:'#E08AAE',site:'#B08A1E'};
+  var PAL=['#0f766e','#2F4C8F','#7B4FA0','#D9772B','#3A8A62','#C8467A','#B08A1E','#4A7FA8'];
+  function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
+  function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
   var groups={}, tasks={}, canWrite=false;
   var API=String(window.GOTODO_API||'').replace(/\/$/,''), PASS='', ME='';
@@ -51,7 +55,7 @@
     sortedGroups().forEach(function(g){
       if(fg&&g.id!==fg)return;
       var ts=filtered(g.id), allg=Object.keys(tasks).filter(function(k){return tasks[k].g===g.id;}), dg=allg.filter(function(k){return tasks[k].done;}).length;
-      html+='<section class="g"><div class="gh"><h2>'+esc(g.name)+'</h2>'+(g.tag?'<span class="tag">'+esc(g.tag)+'</span>':'')+(g.goal?'<span class="goal">利益化目標 '+esc(g.goal.replace('-','/'))+'</span>':'')+'<span class="gc">'+dg+' / '+allg.length+'</span>'
+      html+='<section class="g" style="border-top:4px solid '+gc(g.id)+'"><div class="gh"><h2>'+esc(g.name)+'</h2>'+(g.tag?'<span class="tag">'+esc(g.tag)+'</span>':'')+(g.goal?'<span class="goal">利益化目標 '+esc(g.goal.replace('-','/'))+'</span>':'')+'<span class="gc">'+dg+' / '+allg.length+'</span>'
         +(canWrite?'<button class="btn ghost add" type="button" data-add="'+esc(g.id)+'">＋ 追加</button>':'')+(g.note?'<p class="gnote">'+esc(g.note)+'</p>':'')+'</div><ul>'+ts.map(taskLi).join('')+'</ul></section>';
     });
     app.innerHTML=html||'<div class="empty">条件に合うタスクはありません。</div>';
@@ -69,18 +73,18 @@
       var ts=filtered(g.id); if(!ts.length&&!g.goal)return;
       var s=null,e=null; ts.forEach(function(t){var a=pd(t.s)||pd(t.d),b=pd(t.d);if(a&&(!s||a<s))s=a;if(b&&(!e||b>e))e=b;});
       var gl=g.goal?pd(g.goal+'-01'):null; if(gl){gl=new Date(gl.getFullYear(),gl.getMonth()+1,0);}
-      rows+='<div class="grow gsec"><div class="glabel" title="'+esc(g.name)+'">'+esc(g.name)+'</div><div class="gtrack">'+months
-        +(s&&e?'<div class="gspan" style="left:'+x(s)+'px;width:'+Math.max(6,x(e)-x(s)+PX)+'px"></div>':'')
+      rows+='<div class="grow gsec"><div class="glabel" title="'+esc(g.name)+'" style="box-shadow:inset 5px 0 0 '+gc(g.id)+'">'+esc(g.name)+'</div><div class="gtrack">'+months
+        +(s&&e?'<div class="gspan" style="background:'+gc(g.id)+';border-color:'+gc(g.id)+';opacity:.35;left:'+x(s)+'px;width:'+Math.max(6,x(e)-x(s)+PX)+'px"></div>':'')
         +(gl?'<div class="diamond" style="left:'+x(gl)+'px" title="利益化目標 '+esc(g.goal)+'"></div>':'')+'</div></div>';
       ts.forEach(function(t){
         var a=pd(t.s)||pd(t.d), b=pd(t.d); if(!b)return; if(a>b)a=b;
-        rows+='<div class="grow '+(t.done?'done':'')+'"><div class="glabel" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+'">'+esc(t.t)+'</div><div class="gtrack">'+months
-          +'<div class="gbar '+state(t)+'" data-edit="'+esc(t.id)+'" style="left:'+x(a)+'px;width:'+Math.max(6,x(b)-x(a)+PX)+'px" title="'+esc(t.t)+'（'+short(t.s)+'〜'+short(t.d)+'）"></div></div></div>';
+        rows+='<div class="grow '+(t.done?'done':'')+'"><div class="glabel" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+(t.owner?'（担当：'+esc(t.owner)+'）':'')+'" style="box-shadow:inset 5px 0 0 '+gc(t.g)+'">'+ownerTag(t)+esc(t.t)+'</div><div class="gtrack">'+months
+          +'<div class="gbar '+state(t)+'" data-edit="'+esc(t.id)+'" style="--gc:'+gc(t.g)+';left:'+x(a)+'px;width:'+Math.max(6,x(b)-x(a)+PX)+'px" title="'+esc(t.t)+'（'+short(t.s)+'〜'+short(t.d)+(t.owner?'／担当：'+esc(t.owner):'')+'）"></div></div></div>';
       });
     });
     var tl=today>=START&&today<=END?'<div class="today" style="left:'+(lw+x(today))+'px"><span>今日</span></div>':'';
     app.innerHTML='<div class="gwrap"><div class="gantt" style="--lw:'+lw+'px;--tw:'+tw+'px">'+rows+tl+'</div></div>'
-      +'<div class="legend"><span><i style="background:var(--accent)"></i>予定</span><span><i style="background:var(--warn)"></i>期限7日以内</span><span><i style="background:var(--late)"></i>期限切れ</span><span><i style="background:var(--line)"></i>完了</span><span><i style="background:var(--gold);transform:rotate(45deg);width:10px"></i>利益化目標</span></div>';
+      +'<div class="legend"><span>バーの色は事業ごと</span><span><i style="background:var(--surface);border:2px solid var(--warn)"></i>期限7日以内</span><span><i style="background:var(--surface);border:2px solid var(--late)"></i>期限切れ</span><span><i style="background:var(--line)"></i>完了</span><span><i style="background:var(--gold);transform:rotate(45deg);width:10px"></i>利益化目標</span></div>';
     var gw=app.querySelector('.gwrap'); if(gw&&!gw.dataset.scrolled){gw.scrollLeft=Math.max(0,x(today)-120);gw.dataset.scrolled='1';}
   }
   function rCal(){
@@ -98,7 +102,7 @@
     for(var i=0;i<total;i++){
       var d=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i), k=ymd(d), dt=ts.filter(function(t){return t.d===k;});
       cells+='<div class="cell'+(d.getMonth()!==calMonth.getMonth()?' out':'')+(offDay(k)?' off':'')+(+d===+today?' is-today':'')+'"><div class="dn">'+d.getDate()+(HOLI[k]?' <span class="hn">'+HOLI[k]+'</span>':'')+'</div>'
-        +dt.map(function(t){return '<button type="button" class="chip '+state(t)+'" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+'">'+esc(t.t)+'</button>';}).join('')
+        +dt.map(function(t){return '<button type="button" class="chip '+state(t)+'" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+(t.owner?'（担当：'+esc(t.owner)+'）':'')+'" style="box-shadow:inset 3px 0 0 '+gc(t.g)+'">'+(t.owner?'['+esc(t.owner)+'] ':'')+esc(t.t)+'</button>';}).join('')
         +(dt.length?'<span class="cnt">'+dt.length+'件</span>':'')+'</div>';
     }
     var mk=calMonth.getFullYear()+'-'+String(calMonth.getMonth()+1).padStart(2,'0');
