@@ -6,7 +6,12 @@
     "db:seed": "wrangler d1 execute gotodo-db --remote --file=seed.sql",
     "deploy": "wrangler deploy",
     "db:fix": "wrangler d1 execute gotodo-db --remote --file=fix-weekends.sql",
-    "db:cleanup": "wrangler d1 execute gotodo-db --remote --file=cleanup.sql"
+    "db:cleanup": "wrangler d1 execute gotodo-db --remote --file=cleanup.sql",
+    "db:v2": "wrangler d1 execute gotodo-db --remote --file=migrate-v2.sql",
+    "reset:goto": "wrangler d1 execute gotodo-db --remote --file=reset-goto.sql",
+    "reset:oshita": "wrangler d1 execute gotodo-db --remote --file=reset-oshita.sql",
+    "reset:ito": "wrangler d1 execute gotodo-db --remote --file=reset-ito.sql",
+    "reset:morikubo": "wrangler d1 execute gotodo-db --remote --file=reset-morikubo.sql"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

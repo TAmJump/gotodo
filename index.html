@@ -72,6 +72,7 @@ li.done .due{color:var(--muted);border-color:var(--line);background:none}
 .grow{display:grid;grid-template-columns:var(--lw) var(--tw);border-top:1px solid var(--line-soft);min-height:30px}
 .grow.ghead{position:sticky;top:0;background:var(--surface);z-index:3;border-top:0;border-bottom:1px solid var(--line)}
 .glabel .owner{margin:0 6px 0 0;font-size:10.5px;padding:0 6px;color:var(--fg);background:var(--surface)}
+.gadd{float:right;margin-left:6px;font:inherit;font-size:13px;line-height:1;width:22px;height:22px;border:1px solid var(--accent);border-radius:50%;background:var(--surface);color:var(--accent);cursor:pointer;padding:0}
 .glabel{position:sticky;left:0;background:var(--surface);z-index:2;padding:5px 12px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line);cursor:pointer}
 .grow.gsec .glabel{font-weight:700;font-size:13px;background:var(--line-soft);cursor:default}
 .grow.gsec{background:var(--line-soft)}
@@ -150,7 +151,25 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .login label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
 .login input,.login select{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
 .me{font-size:12px;color:var(--muted)}
-.me button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0 0 0 4px}
+.sec{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+.sec h3,.sec summary{font-size:14px;margin:0 0 4px;font-weight:700;cursor:pointer}
+.hint2{font-size:11.5px;color:var(--muted);margin:0 0 6px}
+.notes,.hists{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:6px}
+.note{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.empty-note{color:var(--muted);font-size:13px}
+.nh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:12px;color:var(--muted)}
+.nh b{color:var(--fg);font-size:13px}
+.nact{margin-left:auto;display:flex;gap:8px}
+.nact button,.nh button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline}
+.nb{white-space:pre-wrap;font-size:14px;margin-top:4px;color:var(--fg)}
+.nact2{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.hist{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;font-size:12.5px;padding:6px 18px;border-top:1px solid var(--line-soft);align-items:baseline}
+.hists .hist{padding:4px 0}
+.hat{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.hist span:last-child{min-width:0;word-break:break-word}
+.ncount{display:inline-block;font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:99px;padding:0 8px;margin-left:6px;vertical-align:1px}
+@media (max-width:560px){.hist{grid-template-columns:auto 1fr}.hist span:last-child{grid-column:1/-1}}
+.me button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0 0 0 10px}
 body{margin:0}
 [hidden]{display:none!important}
 img{max-width:100%}
@@ -168,6 +187,7 @@ img{max-width:100%}
       <a href="#gantt" data-view="gantt">ガントチャート</a>
       <a href="#calendar" data-view="calendar">カレンダー</a>
       <a href="#profit" data-view="profit">利益化</a>
+      <a href="#log" data-view="log">履歴</a>
     </nav>
     <div class="tools">
       <select id="fgroup" aria-label="事業で絞り込み"><option value="">すべての事業</option></select>
@@ -184,11 +204,24 @@ img{max-width:100%}
     <h2 id="ftitle">タスクを編集</h2>
     <label>事業<select id="f_g"></select></label>
     <label>タスク名<input id="f_t" required></label>
-    <label>メモ<textarea id="f_n"></textarea></label>
+    <label>概要<textarea id="f_n"></textarea></label>
     <div class="row2"><label>開始日<input type="date" id="f_s"></label><label>期限<input type="date" id="f_d" required></label></div>
     <label>担当<input id="f_o" placeholder="例：大下、後藤先生"></label>
     <label class="chk"><input type="checkbox" id="f_done">完了</label>
     <div class="meta" id="fmeta"></div>
+    <div id="extra" hidden>
+      <div class="sec">
+        <h3>記録</h3>
+        <p class="hint2">記録は書いた本人だけが編集・削除できます。</p>
+        <ul id="noteList" class="notes"></ul>
+        <textarea id="noteNew" placeholder="経過や連絡事項を書く"></textarea>
+        <div class="nact2"><button type="button" class="btn ghost" id="noteAdd">記録を追加</button></div>
+      </div>
+      <details class="sec" open>
+        <summary>変更履歴</summary>
+        <ul id="histList" class="hists"></ul>
+      </details>
+    </div>
     <div class="acts">
       <button type="button" class="btn danger" id="fdel">削除</button>
       <button type="button" class="btn ghost" id="fcancel">キャンセル</button>
@@ -196,12 +229,22 @@ img{max-width:100%}
     </div>
   </form>
 </div>
+<div class="login" id="chg" hidden>
+  <form id="chgForm">
+    <h2>パスワードの変更</h2>
+    <p>自分専用のパスワードを決めてください。文字の種類や長さは自由です（5555 以外）。</p>
+    <label>新しいパスワード<input type="password" id="c_pass" autocomplete="new-password" required></label>
+    <label>新しいパスワード（確認）<input type="password" id="c_pass2" autocomplete="new-password" required></label>
+    <p id="c_err" style="color:var(--late)"></p>
+    <div class="acts"><button class="btn ghost" type="button" id="chgCancel">キャンセル</button><button class="btn" type="submit">変更する</button></div>
+  </form>
+</div>
 <div class="login" id="login" hidden>
   <form id="loginForm">
     <h2>事業再編TODO</h2>
-    <p>グループ共通のパスコードを入力し、自分の名前を選んでください。</p>
-    <label>パスコード<input type="password" id="l_pass" autocomplete="current-password" required></label>
-    <label>表示名<select id="l_name" required><option value="">選んでください</option><option>後藤基温</option><option>大下甚</option><option>伊藤晋</option><option>森久保康希</option></select></label>
+    <p>名前を選んで、パスワードを入力してください。初めての方は 5555 で入り、自分のパスワードに変更します。</p>
+    <label>名前<select id="l_name" required><option value="">選んでください</option><option>後藤基温</option><option>大下甚</option><option>伊藤晋</option><option>森久保康希</option></select></label>
+    <label>パスワード<input type="password" id="l_pass" autocomplete="current-password" required></label>
     <p id="l_err" style="color:var(--late)"></p>
     <button class="btn" type="submit">開く</button>
   </form>
