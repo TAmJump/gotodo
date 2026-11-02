@@ -150,6 +150,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .login p{margin:0;font-size:13px;color:var(--muted)}
 .login label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
 .login input,.login select{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.back{font-size:12.5px;color:var(--accent);text-decoration:none;justify-self:start}
+.back:hover{text-decoration:underline}
 .me{font-size:12px;color:var(--muted)}
 .sec{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .sec h3,.sec summary{font-size:14px;margin:0 0 4px;font-weight:700;cursor:pointer}
@@ -178,6 +180,7 @@ img{max-width:100%}
 <body>
 <div class="wrap">
   <header>
+    <a class="back" href="https://115en.com/#enter">← 115en グループへ戻る</a>
     <h1>事業再編TODO 2026-2027</h1>
     <div class="sub">2026年11月〜2027年10月の12か月で全事業の利益化を目指す実行計画。グループ全員で確認・更新できます</div>
     <div class="me" id="me"></div>
@@ -247,6 +250,7 @@ img{max-width:100%}
     <label>パスワード<input type="password" id="l_pass" autocomplete="current-password" required></label>
     <p id="l_err" style="color:var(--late)"></p>
     <button class="btn" type="submit">開く</button>
+    <a class="back" href="https://115en.com/#enter">← 115en グループへ戻る</a>
   </form>
 </div>
 <script src="config.js"></script>
