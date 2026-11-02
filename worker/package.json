@@ -5,7 +5,8 @@
     "db:init": "wrangler d1 execute gotodo-db --remote --file=schema.sql",
     "db:seed": "wrangler d1 execute gotodo-db --remote --file=seed.sql",
     "deploy": "wrangler deploy",
-    "db:fix": "wrangler d1 execute gotodo-db --remote --file=fix-weekends.sql"
+    "db:fix": "wrangler d1 execute gotodo-db --remote --file=fix-weekends.sql",
+    "db:cleanup": "wrangler d1 execute gotodo-db --remote --file=cleanup.sql"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

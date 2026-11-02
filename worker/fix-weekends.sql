@@ -19,7 +19,6 @@ UPDATE tasks SET d='2027-01-29' WHERE id='gms-2' AND d='2027-01-31';
 UPDATE tasks SET s='2027-01-15' WHERE id='gms-2' AND s='2027-01-17';
 UPDATE tasks SET d='2027-01-29' WHERE id='gms-4' AND d='2027-01-31';
 UPDATE tasks SET s='2027-01-15' WHERE id='gms-4' AND s='2027-01-17';
-UPDATE tasks SET d='2026-11-02' WHERE id='gmskitei-1' AND d='2026-10-31';
 UPDATE tasks SET d='2026-11-02' WHERE id='gmskitei-2' AND d='2026-11-01';
 UPDATE tasks SET d='2026-11-02' WHERE id='gmskitei-3' AND d='2026-11-01';
 UPDATE tasks SET d='2026-11-02' WHERE id='gmskitei-4' AND d='2026-11-01';
