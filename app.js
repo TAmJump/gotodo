@@ -1,6 +1,9 @@
 
 (function(){
   var START=new Date(2026,9,1), END=new Date(2027,9,31), DAY=86400000, PX=3;
+  var HOLI={"2026-11-03": "文化の日", "2026-11-23": "勤労感謝の日", "2027-01-01": "元日", "2027-01-11": "成人の日", "2027-02-11": "建国記念の日", "2027-02-23": "天皇誕生日", "2027-03-21": "春分の日", "2027-03-22": "振替休日", "2027-04-29": "昭和の日", "2027-05-03": "憲法記念日", "2027-05-04": "みどりの日", "2027-05-05": "こどもの日", "2027-07-19": "海の日", "2027-08-11": "山の日", "2027-09-20": "敬老の日", "2027-09-23": "秋分の日", "2027-10-11": "スポーツの日", "2027-11-03": "文化の日", "2027-11-23": "勤労感謝の日"};
+  function offDay(k){var d=pd(k);return !!HOLI[k]||d.getDay()===0||d.getDay()===6;}
+  function prevWork(k){var d=pd(k);while(offDay(ymd(d)))d=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);return ymd(d);}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
   var groups={}, tasks={}, canWrite=false;
   var API=String(window.GOTODO_API||'').replace(/\/$/,''), PASS='', ME='';
@@ -94,7 +97,7 @@
     var last=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,0), total=Math.ceil((lead+last.getDate())/7)*7;
     for(var i=0;i<total;i++){
       var d=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i), k=ymd(d), dt=ts.filter(function(t){return t.d===k;});
-      cells+='<div class="cell'+(d.getMonth()!==calMonth.getMonth()?' out':'')+(+d===+today?' is-today':'')+'"><div class="dn">'+d.getDate()+'</div>'
+      cells+='<div class="cell'+(d.getMonth()!==calMonth.getMonth()?' out':'')+(offDay(k)?' off':'')+(+d===+today?' is-today':'')+'"><div class="dn">'+d.getDate()+(HOLI[k]?' <span class="hn">'+HOLI[k]+'</span>':'')+'</div>'
         +dt.map(function(t){return '<button type="button" class="chip '+state(t)+'" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+'">'+esc(t.t)+'</button>';}).join('')
         +(dt.length?'<span class="cnt">'+dt.length+'件</span>':'')+'</div>';
     }
@@ -141,12 +144,15 @@
     ev.preventDefault(); if(!canWrite)return;
     var o={g:document.getElementById('f_g').value,t:document.getElementById('f_t').value.trim(),n:document.getElementById('f_n').value.trim(),s:document.getElementById('f_s').value,d:document.getElementById('f_d').value,owner:document.getElementById('f_o').value.trim(),done:document.getElementById('f_done').checked};
     if(!o.t||!o.d){setStatus('タスク名と期限を入力してください',true);return;}
+    var moved=[];
+    if(o.d&&offDay(o.d)){o.d=prevWork(o.d);moved.push('期限を'+short(o.d));}
+    if(o.s&&offDay(o.s)){o.s=prevWork(o.s);moved.push('開始日を'+short(o.s));}
     if(o.s&&o.s>o.d){setStatus('開始日は期限より前の日付にしてください',true);return;}
     await stamp(o); setStatus('保存中…');
     try{
       if(editing){await api('PUT','/api/tasks/'+editing,o);}
       else{var mx=0;Object.keys(tasks).forEach(function(k){mx=Math.max(mx,tasks[k].o||0);});o.o=mx+1;await api('POST','/api/tasks',o);}
-      setStatus('保存しました'); closeEdit(); await load();
+      setStatus(moved.length?'土日祝を避けて'+moved.join('、')+'に変更して保存しました':'保存しました'); closeEdit(); await load();
     }catch(e){fail(e);}
   });
   document.getElementById('fcancel').addEventListener('click',closeEdit);
