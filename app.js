@@ -4,8 +4,8 @@
   var HOLI={"2026-11-03": "文化の日", "2026-11-23": "勤労感謝の日", "2027-01-01": "元日", "2027-01-11": "成人の日", "2027-02-11": "建国記念の日", "2027-02-23": "天皇誕生日", "2027-03-21": "春分の日", "2027-03-22": "振替休日", "2027-04-29": "昭和の日", "2027-05-03": "憲法記念日", "2027-05-04": "みどりの日", "2027-05-05": "こどもの日", "2027-07-19": "海の日", "2027-08-11": "山の日", "2027-09-20": "敬老の日", "2027-09-23": "秋分の日", "2027-10-11": "スポーツの日", "2027-11-03": "文化の日", "2027-11-23": "勤労感謝の日"};
   function offDay(k){var d=pd(k);return !!HOLI[k]||d.getDay()===0||d.getDay()===6;}
   function prevWork(k){var d=pd(k);while(offDay(ymd(d)))d=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);return ymd(d);}
-  var GCOL={oasis:'#0f766e',sakae:'#2F4C8F',goto:'#7B4FA0',gotokitei:'#A07CC0',npo:'#D9772B',kumiai:'#3A8A62',gms:'#C8467A',gmskitei:'#E08AAE',site:'#B08A1E'};
-  var PAL=['#0f766e','#2F4C8F','#7B4FA0','#D9772B','#3A8A62','#C8467A','#B08A1E','#4A7FA8'];
+  var GCOL={oasis:'#00A040',sakae:'#0050FF',goto:'#7A00E6',gotokitei:'#B400FF',npo:'#FF7A00',kumiai:'#00A8A8',gms:'#E6007E',gmskitei:'#FF3399',site:'#FFC800'};
+  var PAL=['#00A040','#0050FF','#7A00E6','#FF7A00','#00A8A8','#E6007E','#FFC800','#E60012'];
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
@@ -74,7 +74,7 @@
       var s=null,e=null; ts.forEach(function(t){var a=pd(t.s)||pd(t.d),b=pd(t.d);if(a&&(!s||a<s))s=a;if(b&&(!e||b>e))e=b;});
       var gl=g.goal?pd(g.goal+'-01'):null; if(gl){gl=new Date(gl.getFullYear(),gl.getMonth()+1,0);}
       rows+='<div class="grow gsec"><div class="glabel" title="'+esc(g.name)+'" style="box-shadow:inset 5px 0 0 '+gc(g.id)+'">'+(canWrite?'<button type="button" class="gadd" data-add="'+esc(g.id)+'" aria-label="'+esc(g.name)+'にタスクを追加" title="この事業にタスクを追加">＋</button>':'')+esc(g.name)+'</div><div class="gtrack">'+months
-        +(s&&e?'<div class="gspan" style="background:'+gc(g.id)+';border-color:'+gc(g.id)+';opacity:.35;left:'+x(s)+'px;width:'+Math.max(6,x(e)-x(s)+PX)+'px"></div>':'')
+        +(s&&e?'<div class="gspan" style="background:'+gc(g.id)+';left:'+x(s)+'px;width:'+Math.max(6,x(e)-x(s)+PX)+'px"></div>':'')
         +(gl?'<div class="diamond" style="left:'+x(gl)+'px" title="利益化目標 '+esc(g.goal)+'"></div>':'')+'</div></div>';
       ts.forEach(function(t){
         var a=pd(t.s)||pd(t.d), b=pd(t.d); if(!b)return; if(a>b)a=b;
@@ -102,7 +102,7 @@
     for(var i=0;i<total;i++){
       var d=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i), k=ymd(d), dt=ts.filter(function(t){return t.d===k;});
       cells+='<div class="cell'+(d.getMonth()!==calMonth.getMonth()?' out':'')+(offDay(k)?' off':'')+(+d===+today?' is-today':'')+'"><div class="dn">'+d.getDate()+(HOLI[k]?' <span class="hn">'+HOLI[k]+'</span>':'')+'</div>'
-        +dt.map(function(t){return '<button type="button" class="chip '+state(t)+'" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+(t.owner?'（担当：'+esc(t.owner)+'）':'')+'" style="box-shadow:inset 3px 0 0 '+gc(t.g)+'">'+(t.owner?'['+esc(t.owner)+'] ':'')+esc(t.t)+'</button>';}).join('')
+        +dt.map(function(t){return '<button type="button" class="chip '+state(t)+'" data-edit="'+esc(t.id)+'" title="'+esc(t.t)+(t.owner?'（担当：'+esc(t.owner)+'）':'')+'" style="box-shadow:inset 4px 0 0 '+gc(t.g)+'">'+(t.owner?'['+esc(t.owner)+'] ':'')+esc(t.t)+'</button>';}).join('')
         +(dt.length?'<span class="cnt">'+dt.length+'件</span>':'')+'</div>';
     }
     var mk=calMonth.getFullYear()+'-'+String(calMonth.getMonth()+1).padStart(2,'0');
