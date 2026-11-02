@@ -10,7 +10,7 @@
 <style>
 /* Layout: 上部に全体進捗とビュー切替（一覧・ガント・カレンダー・利益化）。データは共有DBから読み、グループ全員で更新 */
 :root{
-  --bg:#f7f8f5; --surface:#ffffff; --fg:#1d2723; --muted:#5f6d67; --line:#d9dfd9; --line-soft:#edf0ec;
+  --bg:#ffffff; --surface:#ffffff; --fg:#1d2723; --muted:#5f6d67; --line:#d9dfd9; --line-soft:#edf0ec;
   --accent:#0f766e; --accent-soft:#e3f1ee; --warn:#b45309; --warn-soft:#fdf1e2; --late:#b42318; --late-soft:#fdebe9;
   --gold:#a16207; --gold-soft:#fbf3dc;
   --font-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
@@ -100,6 +100,7 @@ li.done .due{color:var(--muted);border-color:var(--line);background:none}
 .cell{min-height:92px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:4px;min-width:0}
 .cell:nth-child(7n){border-right:0}
 .cell.out{background:var(--bg)}
+.cell.out .dn{opacity:.45}
 .cell.off{background:var(--line-soft)}
 .cell.off .dn{color:var(--late)}
 .hn{font-size:10px;color:var(--late);font-family:var(--font-body)}
