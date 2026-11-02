@@ -9,8 +9,8 @@
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
-  var groups={}, tasks={}, canWrite=false;
-  var API=String(window.GOTODO_API||'').replace(/\/$/,''), PASS='', ME='';
+  var groups={}, tasks={}, notes={}, canWrite=false, TOKEN='';
+  var API=String(window.GOTODO_API||'').replace(/\/$/,''), ME='';
   lss('gotodo-pass',''); lss('gotodo-name','');
   function lsg(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
   function lss(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(e){}}
@@ -31,7 +31,7 @@
       if(q&&((t.t||'')+' '+(t.n||'')+' '+(t.owner||'')).toLowerCase().indexOf(q)<0)return false; return true;
     }).sort(function(a,b){return (a.d||'').localeCompare(b.d||'')||(a.o||0)-(b.o||0);});
   }
-  function view(){var h=(location.hash||'').slice(1);return ['list','gantt','calendar','profit'].indexOf(h)>=0?h:'list';}
+  function view(){var h=(location.hash||'').slice(1);return ['list','gantt','calendar','profit','log'].indexOf(h)>=0?h:'list';}
   function render(){
     var all=Object.keys(tasks).length, done=Object.keys(tasks).filter(function(k){return tasks[k].done;}).length;
     document.getElementById('ovbar').style.width=(all?done/all*100:0)+'%';
@@ -42,12 +42,12 @@
     fg.value=cur;
     document.getElementById('addTask').disabled=!canWrite||!sortedGroups().length;
     if(!sortedGroups().length){app.innerHTML='<div class="empty">まだ事業とタスクが登録されていません。データが登録されると、ここに一覧が表示されます。</div>';return;}
-    ({list:rList,gantt:rGantt,calendar:rCal,profit:rProfit})[view()]();
+    ({list:rList,gantt:rGantt,calendar:rCal,profit:rProfit,log:rLog})[view()]();
   }
   function taskLi(t){
     var st=state(t);
     return '<li class="task '+(t.done?'done':'')+'"><input type="checkbox" data-tg="'+esc(t.id)+'"'+(t.done?' checked':'')+(canWrite?'':' disabled')+' aria-label="完了：'+esc(t.t)+'">'
-      +'<div class="t" data-edit="'+esc(t.id)+'"><b>'+esc(t.t)+'</b>'+(t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'')+(t.n?'<span class="n">'+esc(t.n)+'</span>':'')+'</div>'
+      +'<div class="t" data-edit="'+esc(t.id)+'"><b>'+esc(t.t)+'</b>'+(t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'')+((notes[t.id]||[]).length?'<span class="ncount">記録 '+notes[t.id].length+'</span>':'')+(t.n?'<span class="n">'+esc(t.n)+'</span>':'')+'</div>'
       +'<div class="dates">'+(t.s?'<span class="range">'+short(t.s)+'→</span>':'')+'<span class="due '+st+'">'+esc(t.d?t.d.slice(2).replace(/-/g,'/'):'期限なし')+'</span></div></li>';
   }
   function rList(){
@@ -73,7 +73,7 @@
       var ts=filtered(g.id); if(!ts.length&&!g.goal)return;
       var s=null,e=null; ts.forEach(function(t){var a=pd(t.s)||pd(t.d),b=pd(t.d);if(a&&(!s||a<s))s=a;if(b&&(!e||b>e))e=b;});
       var gl=g.goal?pd(g.goal+'-01'):null; if(gl){gl=new Date(gl.getFullYear(),gl.getMonth()+1,0);}
-      rows+='<div class="grow gsec"><div class="glabel" title="'+esc(g.name)+'" style="box-shadow:inset 5px 0 0 '+gc(g.id)+'">'+esc(g.name)+'</div><div class="gtrack">'+months
+      rows+='<div class="grow gsec"><div class="glabel" title="'+esc(g.name)+'" style="box-shadow:inset 5px 0 0 '+gc(g.id)+'">'+(canWrite?'<button type="button" class="gadd" data-add="'+esc(g.id)+'" aria-label="'+esc(g.name)+'にタスクを追加" title="この事業にタスクを追加">＋</button>':'')+esc(g.name)+'</div><div class="gtrack">'+months
         +(s&&e?'<div class="gspan" style="background:'+gc(g.id)+';border-color:'+gc(g.id)+';opacity:.35;left:'+x(s)+'px;width:'+Math.max(6,x(e)-x(s)+PX)+'px"></div>':'')
         +(gl?'<div class="diamond" style="left:'+x(gl)+'px" title="利益化目標 '+esc(g.goal)+'"></div>':'')+'</div></div>';
       ts.forEach(function(t){
@@ -137,13 +137,51 @@
     document.querySelectorAll('#form input,#form select,#form textarea').forEach(function(el){el.disabled=!canWrite;});
     var meta=document.getElementById('fmeta'); meta.textContent='';
     if(id&&t.at){meta.textContent='最終更新 '+new Date(t.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+(t.by?'（'+t.by+'）':'');}
+    document.getElementById('extra').hidden=!id;
+    if(id){renderNotes();loadHist();}
     document.getElementById('modal').hidden=false; document.getElementById('f_t').focus();
   }
-  function closeEdit(){document.getElementById('modal').hidden=true;editing=null;}
-  async function stamp(o){o.at=new Date().toISOString();o.by=ME;return o;}
-  function api(m,p,b){return fetch(API+p,{method:m,headers:{'Authorization':'Bearer '+PASS,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){if(r.status===401){showLogin('パスコードが違います');throw {code:'unauthorized'};}if(!r.ok)throw {code:'http'};return r.json();});}
-  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});groups=g;tasks=t;canWrite=true;render();}
-  function fail(e){if(e&&e.code==='unauthorized')return;setStatus('保存できませんでした。通信状況を確認して、もう一度お試しください',true);}
+  function fmtAt(a){return a?new Date(a).toLocaleString('ja-JP',{year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';}
+  var noteEdit=null, noteDel=null;
+  function renderNotes(){
+    var list=(notes[editing]||[]), box=document.getElementById('noteList');
+    box.innerHTML=list.length?list.map(function(n){
+      var mine=n.author===ME, editingThis=noteEdit===n.id;
+      return '<li class="note"><div class="nh"><b>'+esc(n.author)+'</b><span>'+fmtAt(n.at)+(n.updated_at?'（編集 '+fmtAt(n.updated_at)+'）':'')+'</span>'
+        +(mine&&!editingThis?'<span class="nact"><button type="button" data-nedit="'+esc(n.id)+'">編集</button><button type="button" data-ndel="'+esc(n.id)+'">'+(noteDel===n.id?'もう一度押すと削除':'削除')+'</button></span>':'')+'</div>'
+        +(editingThis?'<textarea id="nEditBody">'+esc(n.body)+'</textarea><div class="nact2"><button type="button" class="btn ghost" data-ncancel="1">取り消す</button><button type="button" class="btn" data-nsave="'+esc(n.id)+'">保存</button></div>':'<div class="nb">'+esc(n.body)+'</div>')+'</li>';
+    }).join(''):'<li class="note empty-note">まだ記録はありません。</li>';
+  }
+  async function loadHist(){
+    var box=document.getElementById('histList'); box.innerHTML='<li class="hist">読み込み中…</li>';
+    try{var d=await api('GET','/api/logs?task='+encodeURIComponent(editing));
+      box.innerHTML=d.logs.length?d.logs.map(function(l){return '<li class="hist"><span class="hat">'+fmtAt(l.at)+'</span><b>'+esc(l.actor)+'</b><span>'+esc(l.detail)+'</span></li>';}).join(''):'<li class="hist">まだ履歴はありません。</li>';
+    }catch(e){box.innerHTML='<li class="hist">履歴を読み込めませんでした。</li>';}
+  }
+  document.getElementById('noteList').addEventListener('click',async function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    if(b.dataset.nedit){noteEdit=b.dataset.nedit;noteDel=null;renderNotes();return;}
+    if(b.dataset.ncancel){noteEdit=null;renderNotes();return;}
+    if(b.dataset.ndel){if(noteDel!==b.dataset.ndel){noteDel=b.dataset.ndel;renderNotes();return;}
+      try{await api('DELETE','/api/notes/'+b.dataset.ndel);noteDel=null;await load();renderNotes();loadHist();setStatus('記録を削除しました');}catch(err){fail(err);}return;}
+    if(b.dataset.nsave){var v=document.getElementById('nEditBody').value.trim();if(!v)return;
+      try{await api('PUT','/api/notes/'+b.dataset.nsave,{body:v});noteEdit=null;await load();renderNotes();loadHist();setStatus('記録を保存しました');}catch(err){fail(err);}}
+  });
+  document.getElementById('noteAdd').addEventListener('click',async function(){
+    var ta=document.getElementById('noteNew'), v=ta.value.trim(); if(!v||!editing)return;
+    try{await api('POST','/api/notes',{task_id:editing,body:v});ta.value='';await load();renderNotes();loadHist();setStatus('記録を追加しました');}catch(err){fail(err);}
+  });
+  async function rLog(){
+    app.innerHTML='<div class="agenda"><h3>変更履歴（直近300件）</h3><ul id="allLog"><li class="hist">読み込み中…</li></ul></div>';
+    try{var d=await api('GET','/api/logs');var el=document.getElementById('allLog');if(!el)return;
+      el.innerHTML=d.logs.length?d.logs.map(function(l){var t=tasks[l.task_id];return '<li class="hist"><span class="hat">'+fmtAt(l.at)+'</span><b>'+esc(l.actor)+'</b><span>'+(t?'<a href="#" data-edit="'+esc(l.task_id)+'">'+esc(t.t)+'</a>：':'')+esc(l.detail)+'</span></li>';}).join(''):'<li class="hist">まだ履歴はありません。</li>';
+    }catch(e){}
+  }
+  function closeEdit(){document.getElementById('modal').hidden=true;editing=null;noteEdit=null;noteDel=null;document.getElementById('noteNew').value='';}
+  async function stamp(o){return o;}
+  function api(m,p,b){return fetch(API+p,{method:m,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){if(r.status===401){if(TOKEN){TOKEN='';closeEdit();showLogin('時間がたったため、もう一度ログインしてください');}throw {code:'unauthorized'};}if(r.status===403){return r.json().then(function(j){if(j.error==='must_change'){showChange();throw {code:'unauthorized'};}throw {code:'forbidden'};});}if(!r.ok)throw {code:'http'};return r.json();});}
+  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
+  function fail(e){if(e&&e.code==='unauthorized')return;if(e&&e.code==='forbidden'){setStatus('ほかの人の記録は変更できません',true);return;}setStatus('保存できませんでした。通信状況を確認して、もう一度お試しください',true);}
   document.getElementById('form').addEventListener('submit',async function(ev){
     ev.preventDefault(); if(!canWrite)return;
     var o={g:document.getElementById('f_g').value,t:document.getElementById('f_t').value.trim(),n:document.getElementById('f_n').value.trim(),s:document.getElementById('f_s').value,d:document.getElementById('f_d').value,owner:document.getElementById('f_o').value.trim(),done:document.getElementById('f_done').checked};
@@ -186,19 +224,38 @@
   window.addEventListener('hashchange',render);
   var rt=null; window.addEventListener('resize',function(){if(view()!=='gantt')return;clearTimeout(rt);rt=setTimeout(render,200);});
   render();
-  function showLogin(msg){document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};canWrite=false;app.innerHTML='';showMe();}
-  function showMe(){document.getElementById('me').innerHTML=ME?'表示名：'+esc(ME)+'<button type="button" id="logout">ログアウト</button>':'';}
-  document.getElementById('me').addEventListener('click',function(e){if(e.target.id==='logout'){PASS='';ME='';showLogin();}});
+  function showLogin(msg){document.getElementById('chg').hidden=true;document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};notes={};canWrite=false;app.innerHTML='';ME=TOKEN?ME:'';showMe();}
+  function showChange(){document.getElementById('login').hidden=true;document.getElementById('chg').hidden=false;document.getElementById('c_err').textContent='';document.getElementById('c_pass').value='';document.getElementById('c_pass2').value='';document.getElementById('c_pass').focus();}
+  function showMe(){document.getElementById('me').innerHTML=ME&&TOKEN?'ログイン中：'+esc(ME)+'<button type="button" id="chpw">パスワード変更</button><button type="button" id="logout">ログアウト</button>':'';}
+  document.getElementById('me').addEventListener('click',function(e){
+    if(e.target.id==='logout'){var t=TOKEN;api('POST','/api/logout').catch(function(){});TOKEN='';ME='';showLogin();}
+    if(e.target.id==='chpw'){showChange();}
+  });
   document.getElementById('loginForm').addEventListener('submit',async function(ev){
     ev.preventDefault();
-    PASS=document.getElementById('l_pass').value.trim(); ME=document.getElementById('l_name').value.trim();
-    if(!PASS||!ME)return;
-    try{await load();document.getElementById('login').hidden=true;showMe();}
-    catch(e){if(!e||e.code!=='unauthorized')document.getElementById('l_err').textContent='サーバーに接続できませんでした。時間をおいてもう一度お試しください';}
+    var name=document.getElementById('l_name').value, pass=document.getElementById('l_pass').value;
+    if(!name||!pass)return;
+    try{
+      var r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pass:pass})});
+      if(r.status===401){document.getElementById('l_err').textContent='名前かパスワードが違います';document.getElementById('l_pass').value='';return;}
+      if(!r.ok)throw 0;
+      var j=await r.json(); TOKEN=j.token; ME=j.name;
+      if(j.mustChange){showChange();return;}
+      await load();document.getElementById('login').hidden=true;showMe();
+    }catch(e){document.getElementById('l_err').textContent='サーバーに接続できませんでした。時間をおいてもう一度お試しください';}
   });
-  setInterval(function(){if(PASS&&document.visibilityState==='visible'&&document.getElementById('modal').hidden&&document.getElementById('login').hidden)load().catch(function(){});},30000);
-  document.addEventListener('visibilitychange',function(){if(PASS&&document.visibilityState==='visible')load().catch(function(){});});
+  document.getElementById('chgForm').addEventListener('submit',async function(ev){
+    ev.preventDefault();
+    var p=document.getElementById('c_pass').value, p2=document.getElementById('c_pass2').value, err=document.getElementById('c_err');
+    if(!p.trim()){err.textContent='新しいパスワードを入力してください';return;}
+    if(p!==p2){err.textContent='確認用のパスワードが一致しません';return;}
+    if(p==='5555'){err.textContent='5555 以外のパスワードにしてください';return;}
+    try{await api('POST','/api/password',{pass:p});document.getElementById('chg').hidden=true;await load();showMe();setStatus('パスワードを変更しました');}
+    catch(e){err.textContent='変更できませんでした。もう一度お試しください';}
+  });
+  document.getElementById('chgCancel').addEventListener('click',function(){if(groups&&Object.keys(groups).length){document.getElementById('chg').hidden=true;}else{TOKEN='';ME='';showLogin();}});
+  setInterval(function(){if(TOKEN&&document.visibilityState==='visible'&&document.getElementById('modal').hidden&&document.getElementById('login').hidden&&document.getElementById('chg').hidden)load().catch(function(){});},30000);
+  document.addEventListener('visibilitychange',function(){if(TOKEN&&document.getElementById('chg').hidden&&document.visibilityState==='visible')load().catch(function(){});});
   if(!API||API.indexOf('REPLACE')>=0){app.innerHTML='<div class="empty">接続先のAPIがまだ設定されていません。</div>';}
-  else if(!PASS){showLogin();}
-  else{showMe();load().catch(function(e){if(!e||e.code!=='unauthorized')app.innerHTML='<div class="empty">サーバーに接続できませんでした。時間をおいて再読み込みしてください。</div>';});}
+  else{showLogin();}
 })();

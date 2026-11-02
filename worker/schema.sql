@@ -22,3 +22,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   at TEXT DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_g ON tasks(g);
+CREATE TABLE IF NOT EXISTS users (name TEXT PRIMARY KEY, pass_hash TEXT DEFAULT '', salt TEXT DEFAULT '', must_change INTEGER DEFAULT 1);
+CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, name TEXT NOT NULL, expires_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL, updated_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY, task_id TEXT DEFAULT '', actor TEXT NOT NULL, action TEXT NOT NULL, detail TEXT DEFAULT '', at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_notes_task ON notes(task_id);
+CREATE INDEX IF NOT EXISTS idx_logs_task ON logs(task_id);
+CREATE INDEX IF NOT EXISTS idx_logs_at ON logs(at);
+INSERT OR IGNORE INTO users (name) VALUES ('後藤基温'),('大下甚'),('伊藤晋'),('森久保康希');
