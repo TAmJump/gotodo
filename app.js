@@ -3,7 +3,8 @@
   var START=new Date(2026,9,1), END=new Date(2027,9,31), DAY=86400000, PX=3;
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
   var groups={}, tasks={}, canWrite=false;
-  var API=String(window.GOTODO_API||'').replace(/\/$/,''), PASS=lsg('gotodo-pass'), ME=lsg('gotodo-name');
+  var API=String(window.GOTODO_API||'').replace(/\/$/,''), PASS='', ME='';
+  lss('gotodo-pass',''); lss('gotodo-name','');
   function lsg(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
   function lss(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(e){}}
   var app=document.getElementById('app'), statusEl=document.getElementById('status');
@@ -175,14 +176,14 @@
   window.addEventListener('hashchange',render);
   var rt=null; window.addEventListener('resize',function(){if(view()!=='gantt')return;clearTimeout(rt);rt=setTimeout(render,200);});
   render();
-  function showLogin(msg){document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';document.getElementById('l_name').value=ME;}
-  function showMe(){document.getElementById('me').innerHTML=ME?'表示名：'+esc(ME)+'<button type="button" id="logout">切り替え</button>':'';}
-  document.getElementById('me').addEventListener('click',function(e){if(e.target.id==='logout'){PASS='';lss('gotodo-pass','');showLogin();}});
+  function showLogin(msg){document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};canWrite=false;app.innerHTML='';showMe();}
+  function showMe(){document.getElementById('me').innerHTML=ME?'表示名：'+esc(ME)+'<button type="button" id="logout">ログアウト</button>':'';}
+  document.getElementById('me').addEventListener('click',function(e){if(e.target.id==='logout'){PASS='';ME='';showLogin();}});
   document.getElementById('loginForm').addEventListener('submit',async function(ev){
     ev.preventDefault();
     PASS=document.getElementById('l_pass').value.trim(); ME=document.getElementById('l_name').value.trim();
     if(!PASS||!ME)return;
-    try{await load();lss('gotodo-pass',PASS);lss('gotodo-name',ME);document.getElementById('login').hidden=true;showMe();}
+    try{await load();document.getElementById('login').hidden=true;showMe();}
     catch(e){if(!e||e.code!=='unauthorized')document.getElementById('l_err').textContent='サーバーに接続できませんでした。時間をおいてもう一度お試しください';}
   });
   setInterval(function(){if(PASS&&document.visibilityState==='visible'&&document.getElementById('modal').hidden&&document.getElementById('login').hidden)load().catch(function(){});},30000);
