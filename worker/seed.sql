@@ -51,11 +51,10 @@ INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gms-1','gms','GMSへ�
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gms-2','gms','慈誠会を含む病院・訪看の立上げ・管理の受託メニューと月額管理料を決める','','2027-01-17','2027-01-31','',0,40,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gms-3','gms','ネコパス販売パートナー契約の契約当事者をGMSに確定し締結（法人名が未記入）','','2026-11-16','2026-11-30','',0,41,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gms-4','gms','動物病院・歯科のターゲットリストを作成し、営業開始','','2027-01-17','2027-01-31','',0,42,'','2026-10-30T15:30:00+09:00');
-INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-1','gmskitei','慈誠会の兼業ルールを確認し、必要なら許可を取る。雇用保険の加入先（給与の多い1社）を決める','','2026-10-30','2026-10-31','',0,43,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-2','gmskitei','労働条件通知書（雇用契約書）を作成し交付','業務・勤務場所の変更範囲も記載','2026-10-30','2026-11-01','',0,44,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-3','gmskitei','法定の帳簿を作成（労働者名簿・賃金台帳・出勤簿）','','2026-10-30','2026-11-01','',0,45,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-4','gmskitei','残業・休日出勤がある場合は36協定を締結し、労働基準監督署へ届出','','2026-10-30','2026-11-01','',0,46,'','2026-10-30T15:30:00+09:00');
-INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-5','gmskitei','健康保険・厚生年金の資格取得届を年金事務所へ提出','GMSが未加入なら新規適用届も。慈誠会でも加入する場合は二以上事業所勤務届','2026-10-30','2026-11-06','',0,47,'','2026-10-30T15:30:00+09:00');
+INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-5','gmskitei','健康保険・厚生年金の資格取得届を年金事務所へ提出','GMSが未加入なら新規適用届も','2026-10-30','2026-11-06','',0,47,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-6','gmskitei','労働保険の保険関係成立届を労働基準監督署へ提出','','2026-10-30','2026-11-11','',0,48,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-7','gmskitei','雇用保険の適用事業所設置届をハローワークへ提出（GMSで加入する場合）','資格取得届は12月10日まで','2026-10-30','2026-11-11','',0,49,'','2026-10-30T15:30:00+09:00');
 INSERT INTO tasks(id,g,t,n,s,d,owner,done,o,by,at) VALUES('gmskitei-8','gmskitei','給与支払事務所等の開設届出書を税務署へ提出（未提出の場合）','','2026-11-16','2026-11-30','',0,50,'','2026-10-30T15:30:00+09:00');
