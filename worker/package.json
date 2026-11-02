@@ -11,7 +11,8 @@
     "reset:goto": "wrangler d1 execute gotodo-db --remote --file=reset-goto.sql",
     "reset:oshita": "wrangler d1 execute gotodo-db --remote --file=reset-oshita.sql",
     "reset:ito": "wrangler d1 execute gotodo-db --remote --file=reset-ito.sql",
-    "reset:morikubo": "wrangler d1 execute gotodo-db --remote --file=reset-morikubo.sql"
+    "reset:morikubo": "wrangler d1 execute gotodo-db --remote --file=reset-morikubo.sql",
+    "db:npo": "wrangler d1 execute gotodo-db --remote --file=npo-update.sql"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
