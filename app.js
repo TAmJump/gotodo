@@ -4,7 +4,7 @@
   var HOLI={"2026-11-03": "文化の日", "2026-11-23": "勤労感謝の日", "2027-01-01": "元日", "2027-01-11": "成人の日", "2027-02-11": "建国記念の日", "2027-02-23": "天皇誕生日", "2027-03-21": "春分の日", "2027-03-22": "振替休日", "2027-04-29": "昭和の日", "2027-05-03": "憲法記念日", "2027-05-04": "みどりの日", "2027-05-05": "こどもの日", "2027-07-19": "海の日", "2027-08-11": "山の日", "2027-09-20": "敬老の日", "2027-09-23": "秋分の日", "2027-10-11": "スポーツの日", "2027-11-03": "文化の日", "2027-11-23": "勤労感謝の日"};
   function offDay(k){var d=pd(k);return !!HOLI[k]||d.getDay()===0||d.getDay()===6;}
   function prevWork(k){var d=pd(k);while(offDay(ymd(d)))d=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);return ymd(d);}
-  var GCOL={oasis:'#00A040',sakae:'#0050FF',goto:'#7A00E6',gotokitei:'#B400FF',npo:'#FF7A00',kumiai:'#00A8A8',gms:'#E6007E',gmskitei:'#FF3399',site:'#FFC800'};
+  var GCOL={oasis:'#00A040',sakae:'#0050FF',goto:'#7A00E6',gotokitei:'#B400FF',npo:'#FF7A00',kumiai:'#00A8A8',gms:'#E6007E',gmskitei:'#FF3399',site:'#FFC800',migrate:'#00B8F0'};
   var PAL=['#00A040','#0050FF','#7A00E6','#FF7A00','#00A8A8','#E6007E','#FFC800','#E60012'];
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
