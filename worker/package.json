@@ -15,7 +15,8 @@
     "db:npo": "wrangler d1 execute gotodo-db --remote --file=npo-update.sql",
     "db:1104": "wrangler d1 execute gotodo-db --remote --file=update-1104.sql",
     "db:1105": "wrangler d1 execute gotodo-db --remote --file=update-1105.sql",
-    "db:1118": "wrangler d1 execute gotodo-db --remote --file=update-1118.sql"
+    "db:1118": "wrangler d1 execute gotodo-db --remote --file=update-1118.sql",
+    "db:1118b": "wrangler d1 execute gotodo-db --remote --file=update-1118b.sql"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
