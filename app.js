@@ -146,7 +146,8 @@
     var ms=MONTHS();
     var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
     function rows(k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){
-      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>'+(l.bill?(l.bill==='new'?'新規1人あたり ':'利用者1人あたり 月')+(+l.m||0).toLocaleString('ja-JP',{maximumFractionDigits:2})+'万円':'月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':''))+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
+      var sm=(l.bill?(l.bill==='new'?'新規1人あたり ':'利用者1人あたり 月')+(+l.m||0).toLocaleString('ja-JP',{maximumFractionDigits:2})+'万円':'月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':''))+'／'+per(l);
+      return '<tr><td class="bn"><div class="bline"><span class="btxt"><b title="'+esc(l.n)+'">'+esc(l.n)+'</b><small title="'+esc(sm+(l.note?'／'+l.note:''))+'">'+esc(sm)+(l.note?'／'+esc(l.note):'')+'</small></span><button type="button" class="binfo" data-binfo="'+esc(b.id)+'" data-line="'+esc(l.id)+'" aria-label="説明を見る">i</button></div></td>'
         +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(gross(l,m)):'–')+'</td>';}).join('')
         +'<td class="n"><b>'+num1(lineYear(l))+'</b></td>'
         +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>'
@@ -369,6 +370,10 @@
   });
   app.addEventListener('click',function(e){
     var sb=e.target.closest('[data-bsel]');if(sb){bsel=sb.dataset.bsel;try{localStorage.setItem('todo-bsel',bsel);}catch(x){}render();return;}
+    var bi=e.target.closest('[data-binfo]');if(bi){e.preventDefault();var L=findLine(bi.dataset.binfo,bi.dataset.line);if(!L)return;closeNote();var el=document.createElement('div');el.className='bnote binfo-pop';el.setAttribute('role','dialog');
+      el.innerHTML='<div class="bnote-h"><b>'+esc(L.n)+'</b><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div><p>'+esc(bi.closest('td').querySelector('small').getAttribute('title'))+'</p>';
+      document.body.appendChild(el);var r=bi.getBoundingClientRect(),w=Math.min(360,window.innerWidth-24);el.style.width=w+'px';el.style.left=Math.min(r.left,window.innerWidth-w-12)+'px';var top=r.bottom+6;if(top+el.offsetHeight>window.innerHeight-12)top=Math.max(12,r.top-el.offsetHeight-6);el.style.top=top+'px';note={el:el};
+      el.addEventListener('click',function(ev){if(ev.target.closest('[data-bclose]'))closeNote();});el.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeNote();});el.querySelector('.bx').focus();return;}
     var yc=e.target.closest('[data-yj]');if(yc&&canWrite){e.preventDefault();openActual(yc.dataset.yj,yc.dataset.ym,yc);return;}
     var t=e.target.closest('[data-badd],[data-bed],[data-bcp]'); if(!t||!canWrite)return;
     e.preventDefault();
