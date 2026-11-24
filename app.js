@@ -9,7 +9,7 @@
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
-  var groups={}, tasks={}, notes={}, canWrite=false, TOKEN='';
+  var groups={}, tasks={}, notes={}, budgets=[], canWrite=false, TOKEN='';
   var API=String(window.GOTODO_API||'').replace(/\/$/,''), ME='';
   lss('gotodo-pass',''); lss('gotodo-name','');
   function lsg(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
@@ -110,10 +110,28 @@
     app.innerHTML='<div class="mstrip">'+strip+'</div><div class="cal">'+cells+'</div>'
       +'<div class="agenda"><h3>'+calMonth.getFullYear()+'年'+(calMonth.getMonth()+1)+'月が期限のタスク（'+ag.length+'件）</h3><ul>'+(ag.length?ag.map(taskLi).join(''):'<li class="task"><span></span><span class="t">この月が期限のタスクはありません。</span></li>')+'</ul></div>';
   }
+
+  function yen(v){return (v<0?'▲':'')+Math.abs(Math.round(v)).toLocaleString('ja-JP');}
+  function lineYear(l){var f=+l.from||1,t=+l.to||12;return (+l.m||0)*Math.max(0,t-f+1);}
+  function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});return {r:r,e:e,p:r-e};}
+  function budNums(t){return '<div class="bnums"><div><span>年間売上</span><b>'+yen(t.r)+'</b></div><div><span>年間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/12)+'</b></div></div>';}
+  function budRows(b,k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){var per=(+l.from===1&&+l.to===12)?'通年':(l.from===l.to?l.from+'月のみ':l.from+'月〜'+l.to+'月');return '<tr><td>'+esc(l.n)+(l.note?'<small>'+esc(l.note)+'</small>':'')+'</td><td class="n">'+yen(l.m)+'</td><td>'+per+'</td><td class="n">'+yen(lineYear(l))+'</td></tr>';}).join('');}
+  function rBudget(){
+    if(!budgets.length)return '';
+    var all={r:0,e:0,p:0};budgets.forEach(function(b){var t=budTotals(b);all.r+=t.r;all.e+=t.e;all.p+=t.p;});
+    var h='<section class="budget"><h2>2027年 予算（保守的・仮）<small>単位：万円／期間 '+esc(budgets[0].period||'')+'</small></h2>'
+      +'<div class="bgroup"><h3>グループ全体</h3>'+budNums(all)+'</div>';
+    budgets.forEach(function(b){var t=budTotals(b);
+      h+='<details class="bco"><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
+        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/12)+'</b> 万円</p>'
+        +'<table><thead><tr><th>売上</th><th class="n">月額</th><th>期間</th><th class="n">年額</th></tr></thead><tbody>'+budRows(b,'rev')+'</tbody>'
+        +'<thead><tr><th>支出</th><th class="n">月額</th><th>期間</th><th class="n">年額</th></tr></thead><tbody>'+budRows(b,'exp')+'</tbody></table></div></details>';});
+    return h+'</section><h2 class="ptitle">事業ごとの利益化</h2>';
+  }
   function rProfit(){
     var gs=sortedGroups(), cnt={none:0,prep:0,revenue:0,profit:0};
     gs.forEach(function(g){if(g.goal)cnt[g.status||'none']++;});
-    var html='<div class="psum">'+Object.keys(STATUS).map(function(k){return '<div><b>'+cnt[k]+'</b>'+STATUS[k]+'</div>';}).join('')+'</div><div class="pgrid">';
+    var html=rBudget()+'<div class="psum">'+Object.keys(STATUS).map(function(k){return '<div><b>'+cnt[k]+'</b>'+STATUS[k]+'</div>';}).join('')+'</div><div class="pgrid">';
     gs.forEach(function(g){
       var allg=Object.keys(tasks).filter(function(k){return tasks[k].g===g.id;}), dg=allg.filter(function(k){return tasks[k].done;}).length, st=g.status||'none', dis=canWrite?'':' disabled';
       html+='<div class="pcard"><h3>'+esc(g.name)+'</h3><span class="pill '+st+'">'+STATUS[st]+'</span>'
@@ -180,7 +198,7 @@
   function closeEdit(){document.getElementById('modal').hidden=true;editing=null;noteEdit=null;noteDel=null;document.getElementById('noteNew').value='';}
   async function stamp(o){return o;}
   function api(m,p,b){return fetch(API+p,{method:m,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){if(r.status===401){if(TOKEN){TOKEN='';closeEdit();showLogin('時間がたったため、もう一度ログインしてください');}throw {code:'unauthorized'};}if(r.status===403){return r.json().then(function(j){if(j.error==='must_change'){showChange();throw {code:'unauthorized'};}throw {code:'forbidden'};});}if(!r.ok)throw {code:'http'};return r.json();});}
-  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
+  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;budgets=(d.budgets||[]).map(function(b){try{b.lines=JSON.parse(b.lines||'[]');}catch(e){b.lines=[];}return b;});canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
   function fail(e){if(e&&e.code==='unauthorized')return;if(e&&e.code==='forbidden'){setStatus('ほかの人の記録は変更できません',true);return;}setStatus('保存できませんでした。通信状況を確認して、もう一度お試しください',true);}
   document.getElementById('form').addEventListener('submit',async function(ev){
     ev.preventDefault(); if(!canWrite)return;
@@ -224,7 +242,7 @@
   window.addEventListener('hashchange',render);
   var rt=null; window.addEventListener('resize',function(){if(view()!=='gantt')return;clearTimeout(rt);rt=setTimeout(render,200);});
   render();
-  function showLogin(msg){document.getElementById('chg').hidden=true;document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};notes={};canWrite=false;app.innerHTML='';ME=TOKEN?ME:'';showMe();}
+  function showLogin(msg){document.getElementById('chg').hidden=true;document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};notes={};budgets=[];canWrite=false;app.innerHTML='';ME=TOKEN?ME:'';showMe();}
   function showChange(){document.getElementById('login').hidden=true;document.getElementById('chg').hidden=false;document.getElementById('c_err').textContent='';document.getElementById('c_pass').value='';document.getElementById('c_pass2').value='';document.getElementById('c_pass').focus();}
   function showMe(){document.getElementById('me').innerHTML=ME&&TOKEN?'ログイン中：'+esc(ME)+'<button type="button" id="chpw">パスワード変更</button><button type="button" id="logout">ログアウト</button>':'';}
   document.getElementById('me').addEventListener('click',function(e){

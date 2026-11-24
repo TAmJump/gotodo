@@ -129,7 +129,9 @@ export default {
         const g = await env.DB.prepare("SELECT * FROM groups ORDER BY o").all();
         const t = await env.DB.prepare("SELECT * FROM tasks ORDER BY d, o").all();
         const n = await env.DB.prepare("SELECT * FROM notes ORDER BY at").all();
-        return json({ me, groups: g.results, tasks: t.results, notes: n.results });
+        let b = { results: [] };
+        try { b = await env.DB.prepare("SELECT * FROM budgets ORDER BY o").all(); } catch (e) {}
+        return json({ me, groups: g.results, tasks: t.results, notes: n.results, budgets: b.results });
       }
 
       if (req.method === "GET" && parts[1] === "logs") {
