@@ -9,7 +9,7 @@
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
-  var groups={}, tasks={}, notes={}, budgets=[], actuals={}, canWrite=false, TOKEN='';
+  var groups={}, tasks={}, notes={}, budgets=[], actuals={}, goals={}, canWrite=false, TOKEN='';
   var API=String(window.GOTODO_API||'').replace(/\/$/,''), ME='';
   lss('gotodo-pass',''); lss('gotodo-name','');
   function lsg(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
@@ -31,7 +31,7 @@
       if(q&&((t.t||'')+' '+(t.n||'')+' '+(t.owner||'')).toLowerCase().indexOf(q)<0)return false; return true;
     }).sort(function(a,b){return (a.d||'').localeCompare(b.d||'')||(a.o||0)-(b.o||0);});
   }
-  function view(){var h=(location.hash||'').slice(1);return ['list','gantt','calendar','profit','log'].indexOf(h)>=0?h:'list';}
+  function view(){var h=(location.hash||'').slice(1);return ['list','gantt','calendar','goal','profit','log'].indexOf(h)>=0?h:'list';}
   function render(){
     var all=Object.keys(tasks).length, done=Object.keys(tasks).filter(function(k){return tasks[k].done;}).length;
     document.getElementById('ovbar').style.width=(all?done/all*100:0)+'%';
@@ -42,7 +42,7 @@
     fg.value=cur;
     document.getElementById('addTask').disabled=!canWrite||!sortedGroups().length;
     if(!sortedGroups().length){app.innerHTML='<div class="empty">まだ事業とタスクが登録されていません。データが登録されると、ここに一覧が表示されます。</div>';return;}
-    ({list:rList,gantt:rGantt,calendar:rCal,profit:rProfit,log:rLog})[view()]();
+    ({list:rList,gantt:rGantt,calendar:rCal,goal:rGoal,profit:rProfit,log:rLog})[view()]();
   }
   function taskLi(t){
     var st=state(t);
@@ -268,6 +268,103 @@
     });
   }
   function closeNote(){if(note&&note.el)note.el.remove();note=null;}
+
+  /* ---------- 目標ツリー ---------- */
+  var PEOPLE=['後藤基温','大下甚','伊藤晋','森久保康希'], gsel='大下甚';
+  try{gsel=localStorage.getItem('todo-gsel')||gsel;if(PEOPLE.indexOf(gsel)<0)gsel='大下甚';}catch(e){}
+  function goalOf(id){return goals[id]||{id:id,role:'',ideal:'',income:null,year:'',tree:[]};}
+  function gnFind(arr,id,par){for(var i=0;i<arr.length;i++){if(arr[i].id===id)return {n:arr[i],arr:arr,i:i,par:par};var r=gnFind(arr[i].kids||[],id,arr[i]);if(r)return r;}return null;}
+  function bud(id){return budgets.filter(function(b){return b.id===id;})[0];}
+  function gnLink(n){
+    var out='';
+    if(n.co){var b=bud(n.co);if(b){
+      if(n.line){var l=b.lines.filter(function(x){return x.id===n.line;})[0];
+        if(l)out+='<span class="glink"><em>予算</em>'+esc(b.name)+'／'+(l.k==='exp'?'支出 ':'売上 ')+'<b>'+yen(lineYear(l))+'</b>万円</span>';}
+      else{var t=budTotals(b),y=yojitsu(b);
+        out+='<span class="glink"><em>予算</em>'+esc(b.name)+'／売上 <b>'+yen(t.r)+'</b>・損益 <b class="'+(t.p<0?'neg':'')+'">'+yen(t.p)+'</b>万円</span>';
+        if(y)out+='<span class="glink act"><em>実績</em>'+y.n+'か月／売上 <b>'+yen(y.ar)+'</b>（予算 '+yen(y.br)+'）</span>';}
+    }}
+    if(n.g&&groups[n.g]){var all=Object.keys(tasks).filter(function(k){return tasks[k].g===n.g;}),dn=all.filter(function(k){return tasks[k].done;}).length;
+      out+='<span class="glink todo"><em>TODO</em>'+esc(groups[n.g].name)+'／完了 <b>'+dn+' / '+all.length+'</b></span>';}
+    return out;
+  }
+  function gnTree(arr,pid){
+    if(!arr||!arr.length)return '';
+    return '<ul class="gtree">'+arr.map(function(n){
+      return '<li><div class="gnode"><button type="button" class="gtxt" data-gn="'+esc(n.id)+'"'+(canWrite?'':' disabled')+'>'+esc(n.t)+'</button>'
+        +(canWrite?'<button type="button" class="gplus" data-gnadd="'+esc(n.id)+'" title="この下に枝を追加" aria-label="この下に枝を追加">＋</button>':'')
+        +'<div class="glinks">'+gnLink(n)+'</div></div>'+gnTree(n.kids,n.id)+'</li>';
+    }).join('')+'</ul>';
+  }
+  function incomeTxt(g){return g.income!=null&&g.income!==''?yen(+g.income)+'万円'+(g.year?'（'+esc(g.year)+'年）':''):'未記入';}
+  function rGoal(){
+    var G=goalOf('_group'), cur=goalOf(gsel);
+    var h='<section class="goals"><h2>目標（理想から、やることへ）<small>数字は予実の'+esc(BRANGES[bsel][2])+'。枝をクリックで修正、＋で枝を追加</small></h2>'
+      +'<div class="gvision"><em>グループの理想</em><button type="button" class="gvtxt" data-gperson="_group"'+(canWrite?'':' disabled')+'>'+(G.ideal?esc(G.ideal):'<span class="gnone">未記入（クリックして入力）</span>')+'</button></div>'
+      +'<div class="bsel" role="group" aria-label="数字の期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2]+'</button>';}).join('')+'</div>'
+      +'<div class="gpeople" role="tablist">'+PEOPLE.map(function(p){var g=goalOf(p);
+        return '<button type="button" role="tab" class="gp" data-gsel="'+esc(p)+'" aria-selected="'+(p===gsel)+'"><span class="gpn">'+esc(p)+(g.role?'<small>'+esc(g.role)+'</small>':'')+'</span>'
+          +'<span class="gpi">'+(g.ideal?esc(g.ideal):'理想：未記入')+'</span><span class="gpy"><em>目標年収</em>'+incomeTxt(g)+'</span></button>';}).join('')+'</div>'
+      +'<div class="groot"><div class="grh"><div><em>'+esc(gsel)+'の理想</em><p>'+(cur.ideal?esc(cur.ideal):'<span class="gnone">未記入</span>')+'</p></div>'
+      +'<div class="gyr"><em>目標年収</em><b>'+incomeTxt(cur)+'</b></div>'
+      +(canWrite?'<span class="grb"><button type="button" class="btn ghost" data-gperson="'+esc(gsel)+'">理想・年収を修正</button> <button type="button" class="btn primary" data-gnadd="">＋ 枝を追加</button></span>':'')+'</div>'
+      +(cur.tree.length?gnTree(cur.tree,''):'<p class="gempty">まだ枝がありません。「＋ 枝を追加」から、理想のために何をやるかを書いてください。</p>')+'</div></section>';
+    app.innerHTML=h;
+  }
+  function placeNote(el,anchor){
+    document.body.appendChild(el);
+    var r=anchor&&anchor.getBoundingClientRect(), w=Math.min(380,window.innerWidth-24);
+    el.style.width=w+'px';
+    var left=r?Math.min(Math.max(12,r.left),window.innerWidth-w-12):(window.innerWidth-w)/2;
+    var top=r?r.bottom+8:80; if(top+el.offsetHeight>window.innerHeight-12)top=Math.max(12,(r?r.top:window.innerHeight)-el.offsetHeight-8);
+    el.style.left=left+'px'; el.style.top=top+'px';
+    el.addEventListener('keydown',function(e){if(e.key==='Escape')closeNote();});
+  }
+  async function saveGoal(id,g){var o=goalOf(id);var body={role:g.role!=null?g.role:o.role,ideal:g.ideal!=null?g.ideal:o.ideal,income:g.income!==undefined?g.income:o.income,year:g.year!=null?g.year:o.year,tree:g.tree||o.tree};
+    await api('PUT','/api/goals/'+encodeURIComponent(id),body);}
+  function openPerson(id,anchor){
+    closeNote(); var g=goalOf(id), grp=id==='_group';
+    var el=document.createElement('div'); el.className='bnote'; el.setAttribute('role','dialog');
+    el.innerHTML='<div class="bnote-h"><b>'+(grp?'グループの理想':'理想と目標年収')+'</b><span>'+(grp?'':esc(id))+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
+      +(grp?'':'<label>立場<input data-gf="role" type="text" maxlength="40" placeholder="例：代表・幹部"></label>')
+      +'<label>理想（一言）<textarea data-gf="ideal" rows="3" maxlength="300"></textarea></label>'
+      +(grp?'':'<div class="bnote-r"><label>目標年収（万円）<input data-gf="income" type="number" step="1" inputmode="numeric"></label><label>達成する年<input data-gf="year" type="number" min="2026" max="2060" step="1" placeholder="例：2030"></label></div>')
+      +'<p class="bnote-err" aria-live="polite"></p><div class="bnote-b"><span></span><span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-gsave>保存</button></span></div>';
+    ['role','ideal','income','year'].forEach(function(f){var i=el.querySelector('[data-gf='+f+']');if(i)i.value=g[f]==null?'':g[f];});
+    placeNote(el,anchor); note={el:el}; el.querySelector('[data-gf=ideal]').focus();
+    el.addEventListener('click',async function(e){
+      if(e.target.closest('[data-bclose]')){closeNote();return;}
+      if(!e.target.closest('[data-gsave]'))return;
+      var v={};['role','ideal','income','year'].forEach(function(f){var i=el.querySelector('[data-gf='+f+']');if(i)v[f]=i.value.trim();});
+      if(v.year&&!/^\d{4}$/.test(v.year)){el.querySelector('.bnote-err').textContent='達成する年は西暦4桁で入力してください';return;}
+      if(v.income==='')v.income=null;
+      try{await saveGoal(id,v);closeNote();setStatus('目標を保存しました');await load();}catch(x){fail(x);}
+    });
+  }
+  function openNode(pid,nid,anchor){
+    closeNote();
+    var g=goalOf(gsel), tree=JSON.parse(JSON.stringify(g.tree||[])), f=nid?gnFind(tree,nid,null):null, n=f?f.n:{t:'',co:'',line:'',g:''};
+    var coOpts='<option value="">つなげない</option>'+budgets.map(function(b){return '<optgroup label="'+esc(b.name)+'"><option value="'+esc(b.id)+'|">'+esc(b.name)+'（会社全体）</option>'+b.lines.map(function(l){return '<option value="'+esc(b.id+'|'+l.id)+'">'+(l.k==='exp'?'［支出］':'［売上］')+esc(l.n)+'</option>';}).join('')+'</optgroup>';}).join('');
+    var gOpts='<option value="">つなげない</option>'+sortedGroups().map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join('');
+    var parent=pid?gnFind(tree,pid,null):null;
+    var el=document.createElement('div'); el.className='bnote'; el.setAttribute('role','dialog');
+    el.innerHTML='<div class="bnote-h"><b>'+(nid?'枝を修正':'枝を追加')+'</b><span>'+esc(parent?'「'+parent.n.t+'」の下':gsel+'の理想の下')+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
+      +'<label>やること・目標<textarea data-gf="t" rows="2" maxlength="200" placeholder="例：病院コンサルを3件に増やす"></textarea></label>'
+      +'<label>予実とつなぐ（数字を自動で表示）<select data-gf="co">'+coOpts+'</select></label>'
+      +'<label>TODOとつなぐ（進み具合を表示）<select data-gf="g">'+gOpts+'</select></label>'
+      +'<p class="bnote-err" aria-live="polite"></p><div class="bnote-b">'+(nid?'<button type="button" class="btn danger" data-gdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-gsave>保存</button></span></div>';
+    el.querySelector('[data-gf=t]').value=n.t||''; el.querySelector('[data-gf=co]').value=n.co?n.co+'|'+(n.line||''):''; el.querySelector('[data-gf=g]').value=n.g||'';
+    placeNote(el,anchor); note={el:el}; el.querySelector('[data-gf=t]').focus();
+    el.addEventListener('click',async function(e){
+      if(e.target.closest('[data-bclose]')){closeNote();return;}
+      var del=e.target.closest('[data-gdel]'), save=e.target.closest('[data-gsave]'); if(!del&&!save)return;
+      if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent=(f.n.kids&&f.n.kids.length?'下の枝ごと削除':'本当に削除');return;}f.arr.splice(f.i,1);}
+      else{var t=el.querySelector('[data-gf=t]').value.trim();if(!t){el.querySelector('.bnote-err').textContent='やること・目標を入力してください';return;}
+        var cv=el.querySelector('[data-gf=co]').value.split('|'),v={t:t,co:cv[0]||'',line:cv[1]||'',g:el.querySelector('[data-gf=g]').value};
+        if(f)Object.assign(f.n,v);else{v.id='gn'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);v.kids=[];if(parent){parent.n.kids=parent.n.kids||[];parent.n.kids.push(v);}else tree.push(v);}}
+      try{await saveGoal(gsel,{tree:tree});closeNote();setStatus('目標を保存しました');await load();}catch(x){fail(x);}
+    });
+  }
   function rProfit(){
     var gs=sortedGroups(), cnt={none:0,prep:0,revenue:0,profit:0};
     gs.forEach(function(g){if(g.goal)cnt[g.status||'none']++;});
@@ -338,7 +435,7 @@
   function closeEdit(){document.getElementById('modal').hidden=true;editing=null;noteEdit=null;noteDel=null;document.getElementById('noteNew').value='';}
   async function stamp(o){return o;}
   function api(m,p,b){return fetch(API+p,{method:m,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){if(r.status===401){if(TOKEN){TOKEN='';closeEdit();showLogin('時間がたったため、もう一度ログインしてください');}throw {code:'unauthorized'};}if(r.status===403){return r.json().then(function(j){if(j.error==='must_change'){showChange();throw {code:'unauthorized'};}throw {code:'forbidden'};});}if(!r.ok)throw {code:'http'};return r.json();});}
-  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;actuals={};(d.actuals||[]).forEach(function(a){actuals[a.company+'|'+a.ym]=a;});budgets=(d.budgets||[]).map(function(b){try{b.lines=JSON.parse(b.lines||'[]');}catch(e){b.lines=[];}return b;});canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
+  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;actuals={};(d.actuals||[]).forEach(function(a){actuals[a.company+'|'+a.ym]=a;});goals={};(d.goals||[]).forEach(function(x){try{x.tree=JSON.parse(x.tree||'[]');}catch(e){x.tree=[];}goals[x.id]=x;});budgets=(d.budgets||[]).map(function(b){try{b.lines=JSON.parse(b.lines||'[]');}catch(e){b.lines=[];}return b;});canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
   function fail(e){if(e&&e.code==='unauthorized')return;if(e&&e.code==='forbidden'){setStatus('ほかの人の記録は変更できません',true);return;}setStatus('保存できませんでした。通信状況を確認して、もう一度お試しください',true);}
   document.getElementById('form').addEventListener('submit',async function(ev){
     ev.preventDefault(); if(!canWrite)return;
@@ -369,6 +466,10 @@
     var mb=e.target.closest('[data-month]'); if(mb){calMonth=pd(mb.getAttribute('data-month')+'-01');render();}
   });
   app.addEventListener('click',function(e){
+    var gs=e.target.closest('[data-gsel]');if(gs){gsel=gs.dataset.gsel;try{localStorage.setItem('todo-gsel',gsel);}catch(x){}render();return;}
+    var gpz=e.target.closest('[data-gperson]');if(gpz&&canWrite){e.preventDefault();openPerson(gpz.dataset.gperson,gpz);return;}
+    var gna=e.target.closest('[data-gnadd]');if(gna&&canWrite){e.preventDefault();openNode(gna.dataset.gnadd,null,gna);return;}
+    var gnn=e.target.closest('[data-gn]');if(gnn&&canWrite){e.preventDefault();openNode(null,gnn.dataset.gn,gnn);return;}
     var sb=e.target.closest('[data-bsel]');if(sb){bsel=sb.dataset.bsel;try{localStorage.setItem('todo-bsel',bsel);}catch(x){}render();return;}
     var bi=e.target.closest('[data-binfo]');if(bi){e.preventDefault();var L=findLine(bi.dataset.binfo,bi.dataset.line);if(!L)return;closeNote();var el=document.createElement('div');el.className='bnote binfo-pop';el.setAttribute('role','dialog');
       el.innerHTML='<div class="bnote-h"><b>'+esc(L.n)+'</b><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div><p>'+esc(bi.closest('td').querySelector('small').getAttribute('title'))+'</p>';
@@ -396,7 +497,7 @@
   window.addEventListener('hashchange',render);
   var rt=null; window.addEventListener('resize',function(){if(view()!=='gantt')return;clearTimeout(rt);rt=setTimeout(render,200);});
   render();
-  function showLogin(msg){document.getElementById('chg').hidden=true;document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};notes={};budgets=[];canWrite=false;app.innerHTML='';ME=TOKEN?ME:'';showMe();}
+  function showLogin(msg){document.getElementById('chg').hidden=true;document.getElementById('login').hidden=false;document.getElementById('l_err').textContent=msg||'';if(!msg)document.getElementById('l_name').value='';document.getElementById('l_pass').value='';groups={};tasks={};notes={};budgets=[];goals={};canWrite=false;app.innerHTML='';ME=TOKEN?ME:'';showMe();}
   function showChange(){document.getElementById('login').hidden=true;document.getElementById('chg').hidden=false;document.getElementById('c_err').textContent='';document.getElementById('c_pass').value='';document.getElementById('c_pass2').value='';document.getElementById('c_pass').focus();}
   function showMe(){document.getElementById('me').innerHTML=ME&&TOKEN?'ログイン中：'+esc(ME)+'<button type="button" id="chpw">パスワード変更</button><button type="button" id="logout">ログアウト</button>':'';}
   document.getElementById('me').addEventListener('click',function(e){

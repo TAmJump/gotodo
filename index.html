@@ -266,6 +266,46 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 body{margin:0}
 [hidden]{display:none!important}
 img{max-width:100%}
+
+.goals h2{font-size:18px;margin:18px 0 10px}
+.goals h2 small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.gvision{display:flex;align-items:baseline;gap:12px;border:2px solid var(--fg);border-radius:10px;padding:12px 16px;margin:0 0 12px;background:#fff}
+.gvision em,.goals em{font-style:normal;font-size:11px;color:var(--muted);white-space:nowrap}
+.gvtxt{flex:1;text-align:left;font:inherit;font-size:17px;font-weight:700;border:0;background:none;padding:0;cursor:pointer;color:var(--fg)}
+.gnone{color:var(--muted);font-weight:400;font-size:13px}
+.gpeople{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:0 0 12px}
+.gp{display:flex;flex-direction:column;gap:4px;text-align:left;font:inherit;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;cursor:pointer;color:var(--fg);min-width:0}
+.gp[aria-selected=true]{border:2px solid var(--accent);padding:9px 11px}
+.gpn{font-weight:700;font-size:14px}
+.gpn small{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
+.gpi{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gpy{font-size:12.5px;font-variant-numeric:tabular-nums}
+.gpy em{margin-right:6px}
+.groot{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 18px 18px}
+.grh{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 24px;border-bottom:1px solid var(--line-soft);padding-bottom:12px}
+.grh p{margin:2px 0 0;font-size:16px;font-weight:700}
+.gyr b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.grb{margin-left:auto}
+.gempty{color:var(--muted);font-size:13px;margin:14px 0 0}
+ul.gtree{list-style:none;margin:0;padding:0 0 0 22px;position:relative}
+.groot>ul.gtree{padding-left:0;margin-top:6px}
+ul.gtree li{position:relative;padding:8px 0 0 18px}
+ul.gtree li::before{content:"";position:absolute;left:0;top:0;bottom:0;border-left:1px solid var(--line)}
+ul.gtree li:last-child::before{bottom:auto;height:22px}
+ul.gtree li::after{content:"";position:absolute;left:0;top:22px;width:12px;border-top:1px solid var(--line)}
+.gnode{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.gtxt{font:inherit;font-size:14px;text-align:left;border:1px solid var(--line);border-radius:6px;background:#fff;padding:4px 10px;cursor:pointer;color:var(--fg)}
+.gtxt:hover{border-color:var(--accent)}
+.gtxt:disabled{cursor:default}
+.groot>ul.gtree>li>.gnode .gtxt{font-weight:700;border-color:var(--fg)}
+.gplus{width:22px;height:22px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font:600 13px/20px var(--font-mono);cursor:pointer;padding:0}
+.gplus:hover{background:var(--accent);color:#fff}
+.glinks{display:flex;flex-wrap:wrap;gap:4px 8px}
+.glink{font-size:12px;border:1px solid var(--line-soft);border-radius:99px;padding:1px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.glink em{margin-right:5px;color:var(--accent)}
+.glink.act em{color:#00A040}
+.glink.todo em{color:#7A00E6}
+.glink b.neg{color:var(--late)}
 </style>
 </head>
 <body>
@@ -280,6 +320,7 @@ img{max-width:100%}
       <a href="#list" data-view="list">一覧</a>
       <a href="#gantt" data-view="gantt">ガントチャート</a>
       <a href="#calendar" data-view="calendar">カレンダー</a>
+      <a href="#goal" data-view="goal">目標</a>
       <a href="#profit" data-view="profit">予実</a>
       <a href="#log" data-view="log">履歴</a>
     </nav>

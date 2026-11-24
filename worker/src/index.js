@@ -133,7 +133,9 @@ export default {
         let b = { results: [] }, a = { results: [] };
         try { b = await env.DB.prepare("SELECT * FROM budgets ORDER BY o").all(); } catch (e) {}
         try { a = await env.DB.prepare("SELECT * FROM actuals").all(); } catch (e) {}
-        return json({ me, groups: g.results, tasks: t.results, notes: n.results, budgets: b.results, actuals: a.results });
+        let gl = { results: [] };
+        try { gl = await env.DB.prepare("SELECT * FROM goals ORDER BY o").all(); } catch (e) {}
+        return json({ me, groups: g.results, tasks: t.results, notes: n.results, budgets: b.results, actuals: a.results, goals: gl.results });
       }
 
       if (req.method === "GET" && parts[1] === "logs") {
@@ -283,6 +285,35 @@ export default {
         if (!msgs.length) return json({ ok: true, unchanged: true });
         await env.DB.prepare("UPDATE budgets SET lines = ?, at = ? WHERE id = ?").bind(JSON.stringify(lines), nowIso(), parts[2]).run();
         await addLog(env, "b:" + parts[2], me, "budget", `${before.name}の予算／` + msgs.join("／"));
+        return json({ ok: true });
+      }
+
+      if (parts[1] === "goals" && parts[2] && req.method === "PUT") {
+        const gid = decodeURIComponent(parts[2]);
+        const okId = gid === "_group" || (await env.DB.prepare("SELECT name FROM users WHERE name = ?").bind(gid).first());
+        if (!okId) return json({ error: "not_found" }, 404);
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, o INTEGER DEFAULT 0, role TEXT DEFAULT '', ideal TEXT DEFAULT '', income REAL, year TEXT DEFAULT '', tree TEXT DEFAULT '[]', by TEXT, at TEXT)").run();
+        const body = await req.json();
+        let count = 0;
+        const clean = (arr, depth) => (Array.isArray(arr) && depth < 6 ? arr : []).slice(0, 50).map((n) => {
+          if (++count > 300) return null;
+          return { id: String(n.id || newId("gn")).slice(0, 40), t: String(n.t || "").slice(0, 200), co: String(n.co || "").slice(0, 40), line: String(n.line || "").slice(0, 40), g: String(n.g || "").slice(0, 40), kids: clean(n.kids, depth + 1) };
+        }).filter((n) => n && n.t);
+        const row = {
+          role: String(body.role || "").slice(0, 40),
+          ideal: String(body.ideal || "").slice(0, 300),
+          income: body.income === "" || body.income == null || isNaN(Number(body.income)) ? null : Math.round(Number(body.income)),
+          year: /^\d{4}$/.test(String(body.year || "")) ? String(body.year) : "",
+          tree: JSON.stringify(clean(body.tree, 0)),
+        };
+        const before = await env.DB.prepare("SELECT * FROM goals WHERE id = ?").bind(gid).first();
+        const label = { role: "立場", ideal: "理想", income: "目標年収", year: "達成年", tree: "枝" };
+        const changed = Object.keys(row).filter((k) => String(before ? before[k] ?? "" : "") !== String(row[k] ?? ""));
+        if (before && !changed.length) return json({ ok: true, unchanged: true });
+        await env.DB.prepare("INSERT INTO goals (id, o, role, ideal, income, year, tree, by, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET role=excluded.role, ideal=excluded.ideal, income=excluded.income, year=excluded.year, tree=excluded.tree, by=excluded.by, at=excluded.at")
+          .bind(gid, before ? before.o : 9, row.role, row.ideal, row.income, row.year, row.tree, me, nowIso()).run();
+        const who = gid === "_group" ? "グループ" : gid;
+        await addLog(env, "goal:" + gid, me, "goal", `${who}の目標／` + changed.map((k) => k === "tree" ? "枝を更新" : `${label[k]}：${short(before ? before[k] ?? "" : "") || "（なし）"} → ${short(row[k] ?? "") || "（なし）"}`).join("／"));
         return json({ ok: true });
       }
 
