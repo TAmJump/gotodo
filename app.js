@@ -9,7 +9,7 @@
   function gc(id){if(GCOL[id])return GCOL[id];var o=(groups[id]&&groups[id].o)||0;return PAL[o%PAL.length];}
   function ownerTag(t){return t.owner?'<span class="owner">'+esc(t.owner)+'</span>':'';}
   var STATUS={none:'未着手',prep:'準備中',revenue:'売上あり',profit:'黒字化'};
-  var groups={}, tasks={}, notes={}, budgets=[], canWrite=false, TOKEN='';
+  var groups={}, tasks={}, notes={}, budgets=[], actuals={}, canWrite=false, TOKEN='';
   var API=String(window.GOTODO_API||'').replace(/\/$/,''), ME='';
   lss('gotodo-pass',''); lss('gotodo-name','');
   function lsg(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
@@ -120,7 +120,8 @@
   function ymS(n){return Math.floor(n/12)+'-'+String(n%12+1).padStart(2,'0');}
   function MONTHS(){var R=BRANGES[bsel],r=[];for(var i=ymN(R[0]);i<=ymN(R[1]);i++)r.push(ymS(i));return r;}
   function inM(l,m){var x=ymN(m);return x>=ymN(l.from)&&x<=ymN(l.to);}
-  function netM(l,m){return (+l.m||0)+(+l.inc||0)*Math.max(0,ymN(m)-ymN(l.from));}
+  function memb(l,m){var c=+l.c0||0,x=null;for(var i=ymN(l.from);i<=ymN(m);i++){var ym=ymS(i),st=c,nw=+l.cnew||0,sp=(l.cstopFrom&&ymN(ym)>=ymN(l.cstopFrom))?Math.min(st,+l.cstop||0):0;c=st+nw-sp;x={start:st,nw:nw,stop:sp,net:nw-sp,end:c};}return x||{start:0,nw:0,stop:0,net:0,end:+l.c0||0};}
+  function netM(l,m){if(l.bill){var x=memb(l,m);return (+l.m||0)*(l.bill==='new'?x.nw:x.start);}return (+l.m||0)+(+l.inc||0)*Math.max(0,ymN(m)-ymN(l.from));}
   function gross(l,m){return netM(l,m)*(l.tax?1.1:1);}
   function lineYear(l){return MONTHS().reduce(function(s,m){return s+(inM(l,m)?gross(l,m):0);},0);}
   function ctax(b,m){var v=b.lines.reduce(function(s,l){return s+(l.tax&&inM(l,m)?(l.k==='rev'?1:-1)*netM(l,m)*0.1:0);},0);return Math.max(0,v);}
@@ -130,23 +131,38 @@
   function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?gross(l,m):0);},0)+(k==='exp'?ctax(b,m):0);}
   function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/MONTHS().length)+'</b></div></div>';}
   function qtyM(l,m){return (+l.qty||0)+(+l.qinc||0)*Math.max(0,ymN(m)-ymN(l.from));}
-  function hasQty(l){return (+l.qty||0)>0||(+l.qinc||0)>0;}
-  function hrsM(b,m){return b.lines.reduce(function(s,l){return s+(hasQty(l)&&inM(l,m)?qtyM(l,m)*(+l.hpu||0):0);},0);}
+  function hasQty(l){return !l.bill&&((+l.qty||0)>0||(+l.qinc||0)>0);}
+  function hrsM(b,m){return b.lines.reduce(function(s,l){if(!inM(l,m))return s;if(l.bill){var x=memb(l,m);return s+(l.bill==='base'?x.end*(+l.hpu||0):x.nw*(+l.hpnew||0));}return s+(hasQty(l)?qtyM(l,m)*(+(l.hpq||l.hpu)||0):0);},0);}
+  function act(b,m){return actuals[b.id+'|'+m];}
+  function actDone(b,ms){return ms.filter(function(m){var a=act(b,m);return a&&(a.rev!=null||a.exp!=null);});}
+  function actSum(b,ms,k){return ms.reduce(function(s,m){var a=act(b,m);return s+(a&&a[k]!=null?+a[k]:0);},0);}
+  function yojitsu(b){var ms=actDone(b,MONTHS());if(!ms.length)return null;
+    var br=ms.reduce(function(s,m){return s+budMonth(b,'rev',m);},0),be=ms.reduce(function(s,m){return s+budMonth(b,'exp',m);},0);
+    var ar=actSum(b,ms,'rev'),ae=actSum(b,ms,'exp');return {n:ms.length,br:br,be:be,ar:ar,ae:ae};}
+  function yjLine(y){if(!y)return '<div class="byj none">実績：未入力</div>';
+    var rate=y.br?Math.round(y.ar/y.br*100):0,d=(y.ar-y.ae)-(y.br-y.be);
+    return '<div class="byj">実績（入力済み '+y.n+'か月）：売上 <b>'+yen(y.ar)+'</b>（予算比 '+rate+'%）／損益 <b class="'+(y.ar-y.ae<0?'neg':'')+'">'+yen(y.ar-y.ae)+'</b>（予算との差 <b class="'+(d<0?'neg':'')+'">'+(d>=0?'+':'')+yen(d)+'</b>）</div>';}
   function budTable(b){
     var ms=MONTHS();
     var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
     function rows(k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){
-      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':'')+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
+      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>'+(l.bill?(l.bill==='new'?'新規1人あたり ':'利用者1人あたり 月')+num1(+l.m||0)+'万円':'月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':''))+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
         +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(gross(l,m)):'–')+'</td>';}).join('')
         +'<td class="n"><b>'+num1(lineYear(l))+'</b></td>'
         +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>'
-      +(hasQty(l)?'<tr class="bqty"><td class="bn">'+esc(l.qlabel||'人数')+'（'+esc(l.unit||'人')+'）'+(+l.hpu?'／稼働 '+num1(+l.hpu)+'時間・'+esc(l.unit||'人')+'あたり':'')+'</td>'+ms.map(function(m){return '<td class="n">'+(inM(l,m)?num1(qtyM(l,m)):'')+'</td>';}).join('')+'<td></td><td></td></tr>':'');}).join('');}
+      +(l.bill==='base'?[['既存（月初）','start'],['新規','nw'],['利用中止','stop'],['純増','net'],['利用者（月末）','end']].map(function(r){return '<tr class="bqty'+(r[1]==='end'?' bend':'')+'"><td class="bn">'+r[0]+'（人）</td>'+ms.map(function(m){if(!inM(l,m))return '<td></td>';var v=memb(l,m)[r[1]];return '<td class="n">'+(r[1]==='net'&&v>0?'+':'')+(r[1]==='stop'&&v?'▲':'')+v+'</td>';}).join('')+'<td></td><td></td></tr>';}).join(''):'')
+      +(l.bill==='new'?'<tr class="bqty"><td class="bn">新規（人）</td>'+ms.map(function(m){return '<td class="n">'+(inM(l,m)?memb(l,m).nw:'')+'</td>';}).join('')+'<td></td><td></td></tr>':'')
+      +(hasQty(l)?'<tr class="bqty"><td class="bn">'+esc(l.qlabel||'人数')+'（'+esc(l.unit||'人')+'）'+(+(l.hpq||l.hpu)?'／稼働 '+num1(+(l.hpq||l.hpu))+'時間・'+esc(l.unit||'人')+'あたり':'')+'</td>'+ms.map(function(m){return '<td class="n">'+(inM(l,m)?num1(qtyM(l,m)):'')+'</td>';}).join('')+'<td></td><td></td></tr>':'');}).join('');}
     function sum(lbl,f,cls){return '<tr class="bsum '+(cls||'')+'"><td class="bn">'+lbl+'</td>'+ms.map(function(m){var v=f(m);return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'')+num1(Math.abs(v))+'</td>';}).join('')+'<td class="n">'+(function(){var t=ms.reduce(function(s,m){return s+f(m);},0);return (t<0?'▲':'')+num1(Math.abs(t));})()+'</td><td></td></tr>';}
     return '<div class="bscroll"><table class="bmon"><thead><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">売上</td></tr>'+head+'</thead><tbody>'+rows('rev')
       +sum('売上計',function(m){return budMonth(b,'rev',m);},'rev')+'</tbody>'
       +'<tbody><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">支出</td></tr>'+rows('exp')+taxRow(b,ms)
       +sum('支出計',function(m){return budMonth(b,'exp',m);})+'</tbody>'
-      +'<tbody>'+sum('損益',function(m){return budMonth(b,'rev',m)-budMonth(b,'exp',m);},'pl')+'</tbody>'
+      +'<tbody>'+sum('損益（予算）',function(m){return budMonth(b,'rev',m)-budMonth(b,'exp',m);},'pl')+'</tbody>'
+      +'<tbody><tr class="bsec act"><td class="bn" colspan="'+(ms.length+3)+'">実績（税込・月ごとに入力）</td></tr>'
+      +['rev','exp'].map(function(k){return '<tr class="bact-row"><td class="bn">'+(k==='rev'?'売上（実績）':'支出（実績）')+'</td>'+ms.map(function(m){var a=act(b,m),v=a&&a[k]!=null?a[k]:null;return '<td class="n"><button type="button" class="bcell'+(v==null?' empty':'')+'" data-yj="'+esc(b.id)+'" data-ym="'+m+'"'+(canWrite?'':' disabled')+' aria-label="'+ymJ(m)+'の実績を入力">'+(v==null?'＋':num1(+v))+'</button></td>';}).join('')+'<td class="n">'+num1(actSum(b,ms,k))+'</td><td></td></tr>';}).join('')
+      +'<tr class="bsum"><td class="bn">損益（実績）</td>'+ms.map(function(m){var a=act(b,m);if(!a)return '<td></td>';var v=(+a.rev||0)-(+a.exp||0);return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'')+num1(Math.abs(v))+'</td>';}).join('')+'<td class="n">'+(function(){var v=actSum(b,ms,'rev')-actSum(b,ms,'exp');return (v<0?'▲':'')+num1(Math.abs(v));})()+'</td><td></td></tr>'
+      +'<tr class="bsum diff"><td class="bn">予算との差（損益）</td>'+ms.map(function(m){var a=act(b,m);if(!a)return '<td></td>';var v=((+a.rev||0)-(+a.exp||0))-(budMonth(b,'rev',m)-budMonth(b,'exp',m));return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'+')+num1(Math.abs(v))+'</td>';}).join('')+'<td></td><td></td></tr></tbody>'
       +(b.lines.some(function(l){return hasQty(l)&&+l.hpu;})?'<tbody><tr class="bsum hrs"><td class="bn">稼働時間（月・合計）</td>'+ms.map(function(m){var h=hrsM(b,m);return '<td class="n">'+(h?num1(h):'')+'</td>';}).join('')+'<td class="n">'+num1(ms.reduce(function(s,m){return s+hrsM(b,m);},0))+'</td><td></td></tr></tbody>':'')+'</table></div>';
   }
   function taxRow(b,ms){var t=ms.reduce(function(s,m){return s+ctax(b,m);},0);if(!t)return '';
@@ -154,15 +170,15 @@
   function rBudget(){
     if(!budgets.length)return '';
     var all={r:0,e:0,p:0};budgets.forEach(function(b){var t=budTotals(b);all.r+=t.r;all.e+=t.e;all.p+=t.p;});
-    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円（税込）</small></h2>'
+    var h='<section class="budget"><h2>予実（会社別の予算と実績）<small>単位：万円（税込）。予算は保守的な見込み、実績は月ごとに入力</small></h2>'
       +'<div class="bsel" role="group" aria-label="表示する期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2]+'</button>';}).join('')+'</div>'
-      +'<div class="bgroup"><h3>グループ全体</h3>'+budNums(all)+'</div>';
+      +'<div class="bgroup"><h3>グループ全体（予算）</h3>'+budNums(all)+(function(){var Y=budgets.map(yojitsu).filter(Boolean);if(!Y.length)return yjLine(null);var t={n:Math.max.apply(null,Y.map(function(y){return y.n;})),br:0,be:0,ar:0,ae:0};Y.forEach(function(y){t.br+=y.br;t.be+=y.be;t.ar+=y.ar;t.ae+=y.ae;});return yjLine(t);})()+'</div>';
     budgets.forEach(function(b){var t=budTotals(b);
-      h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
+      h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span>'+yjLine(yojitsu(b))+'</summary>'
         +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/MONTHS().length)+'</b> 万円（期間平均）'
         +(canWrite?'<button type="button" class="btn primary badd" data-badd="'+esc(b.id)+'">＋ 事業を追加</button>':'')+'</p>'
         +budTable(b)+'</div></details>';});
-    return h+'</section><h2 class="ptitle">事業ごとの利益化</h2>';
+    return h+'</section><h2 class="ptitle">事業ごとの利益化の目標</h2>';
   }
   function findLine(bid,lid){var b=budgets.filter(function(x){return x.id===bid;})[0];return b?b.lines.filter(function(l){return l.id===lid;})[0]:null;}
   function openNote(bid,line,mode,anchor){
@@ -176,8 +192,14 @@
       +'<div class="bnote-r"><label>区分<select data-bf="k"><option value="rev">売上</option><option value="exp">支出</option></select></label>'
       +'<label>月額（万円）<input data-bf="m" type="number" step="0.1" inputmode="decimal"></label></div>'
       +'<label>毎月の増加額（万円・任意）<input data-bf="inc" type="number" step="0.1" inputmode="decimal" placeholder="例：契約者が毎月2人増える → 1.1"></label>'
+      +'<details class="bmem"'+(l.bill?' open':'')+'><summary>利用者数で計算する（新規・中止・月末人数）</summary>'
+      +'<label>計算のしかた<select data-bf="bill"><option value="">使わない（月額をそのまま使う）</option><option value="base">月初の利用者数 × 単価（月額利用料など）</option><option value="new">新規の人数 × 単価（初期費用など）</option></select></label>'
+      +'<div class="bnote-r"><label>開始時の利用者（人）<input data-bf="c0" type="number" step="1"></label><label>毎月の新規（人）<input data-bf="cnew" type="number" step="1"></label></div>'
+      +'<div class="bnote-r"><label>毎月の利用中止（人）<input data-bf="cstop" type="number" step="1"></label><label>中止を見込む月から<input data-bf="cstopFrom" type="month"></label></div>'
+      +'<div class="bnote-r"><label>稼働（時間/利用者・月）<input data-bf="hpu" type="number" step="0.1"></label><label>稼働（時間/新規1人）<input data-bf="hpnew" type="number" step="0.1"></label></div>'
+      +'<p class="bprev">このときの「月額」は1人あたりの単価（万円）です</p></details>'
       +'<div class="bnote-r"><label>人数など（開始時）<input data-bf="qty" type="number" step="1" inputmode="numeric"></label><label>毎月の増加<input data-bf="qinc" type="number" step="1" inputmode="numeric"></label></div>'
-      +'<div class="bnote-r"><label>単位<input data-bf="unit" type="text" maxlength="10" placeholder="人・件・棟"></label><label>1単位の稼働（時間/月）<input data-bf="hpu" type="number" step="0.1" inputmode="decimal"></label></div>'
+      +'<div class="bnote-r"><label>単位<input data-bf="unit" type="text" maxlength="10" placeholder="人・件・棟"></label><label>1単位の稼働（時間/月）<input data-bf="hpq" type="number" step="0.1" inputmode="decimal"></label></div>'
       +'<label class="bchk"><input data-bf="tax" type="checkbox"> 消費税10%がかかる（月額は税抜で入力）</label><p class="bprev"></p>'
       +'<label>事業名・相手先<input data-bf="n" type="text" maxlength="200" placeholder="例：医療法人〇〇 訪看コンサル"></label>'
       +'<div class="bnote-r"><label>開始月<input data-bf="from" type="month" min="'+BP0+'" max="'+BP1+'"></label><label>終了月<input data-bf="to" type="month" min="'+BP0+'" max="'+BP1+'"></label></div>'
@@ -185,7 +207,7 @@
       +'<p class="bnote-err" aria-live="polite"></p>'
       +'<div class="bnote-b">'+(mode==='edit'?'<button type="button" class="btn danger" data-bdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-bsave>保存</button></span></div>';
     function prev(){var m=+el.querySelector('[data-bf=m]').value||0,t=el.querySelector('[data-bf=tax]').checked;el.querySelector('.bprev').textContent=t?'税込 月'+num1(m*1.1)+'万円で表示されます':'入力した金額のまま表示されます';}
-    function fill(x){['k','n','m','inc','qty','qinc','unit','hpu','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null||x[f]===0?(f==='m'&&x[f]===0?0:''):x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
+    function fill(x){['k','n','m','inc','qty','qinc','unit','hpq','hpu','bill','c0','cnew','cstop','cstopFrom','hpnew','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null||x[f]===0?(f==='m'&&x[f]===0?0:''):x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
     fill(l);
     if(mode==='copy')el.querySelector('[data-bf=n]').value=l.n+'（コピー）';
     el.addEventListener('input',function(e){if(e.target.dataset.bf==='m'||e.target.dataset.bf==='tax')prev();});
@@ -208,7 +230,7 @@
       var lines=b.lines.map(function(x){return JSON.parse(JSON.stringify(x));}), err=el.querySelector('.bnote-err');
       if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent='本当に削除';return;}lines=lines.filter(function(x){return x.id!==note.lid;});}
       else{
-        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;v.inc=Math.round((+el.querySelector('[data-bf=inc]').value||0)*10)/10;v.qty=+el.querySelector('[data-bf=qty]').value||0;v.qinc=+el.querySelector('[data-bf=qinc]').value||0;v.unit=el.querySelector('[data-bf=unit]').value.trim();v.hpu=+el.querySelector('[data-bf=hpu]').value||0;
+        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;v.inc=Math.round((+el.querySelector('[data-bf=inc]').value||0)*10)/10;v.qty=+el.querySelector('[data-bf=qty]').value||0;v.qinc=+el.querySelector('[data-bf=qinc]').value||0;v.unit=el.querySelector('[data-bf=unit]').value.trim();v.hpq=+el.querySelector('[data-bf=hpq]').value||0;v.hpu=+el.querySelector('[data-bf=hpu]').value||0;['bill','cstopFrom'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value;});['c0','cnew','cstop','hpnew'].forEach(function(f){v[f]=+el.querySelector('[data-bf='+f+']').value||0;});
         if(!v.n){err.textContent='事業名を入力してください';el.querySelector('[data-bf=n]').focus();return;}
         if(v.m===''||isNaN(+v.m)){err.textContent='月額を数字で入力してください';el.querySelector('[data-bf=m]').focus();return;}
         if(!v.from||!v.to||v.from>v.to){err.textContent='開始月と終了月を確認してください';return;}
@@ -217,6 +239,31 @@
         else{v.id='bl'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);lines.push(v);}
       }
       try{await api('PUT','/api/budgets/'+bid,{lines:lines});budOpen[bid]=true;closeNote();setStatus('予算を保存しました');await load();}catch(x){fail(x);}
+    });
+  }
+  function openActual(bid,ym,anchor){
+    closeNote();var b=budgets.filter(function(x){return x.id===bid;})[0];if(!b)return;var a=act(b,ym)||{};
+    var el=document.createElement('div');el.className='bnote';el.setAttribute('role','dialog');el.setAttribute('aria-label','実績の入力');
+    el.innerHTML='<div class="bnote-h"><b>'+ymJ(ym)+'の実績</b><span>'+esc(b.name)+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
+      +'<p class="bprev">予算：売上 '+num1(budMonth(b,'rev',ym))+'万円／支出 '+num1(budMonth(b,'exp',ym))+'万円（税込）</p>'
+      +'<div class="bnote-r"><label>売上（万円・税込）<input data-af="rev" type="number" step="0.1" inputmode="decimal"></label><label>支出（万円・税込）<input data-af="exp" type="number" step="0.1" inputmode="decimal"></label></div>'
+      +'<label>メモ<textarea data-af="note" rows="2" maxlength="500" placeholder="例：レジデンス 2日分、慈誠会 12月分"></textarea></label>'
+      +'<p class="bnote-err" aria-live="polite"></p>'
+      +'<div class="bnote-b">'+(a.id?'<button type="button" class="btn danger" data-adel>消す</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-asave>保存</button></span></div>';
+    el.querySelector('[data-af=rev]').value=a.rev==null?'':a.rev;el.querySelector('[data-af=exp]').value=a.exp==null?'':a.exp;el.querySelector('[data-af=note]').value=a.note||'';
+    document.body.appendChild(el);
+    var r=anchor.getBoundingClientRect(),w=Math.min(340,window.innerWidth-24);el.style.width=w+'px';
+    el.style.left=Math.min(Math.max(12,r.left-w/2),window.innerWidth-w-12)+'px';var top=r.bottom+8;if(top+el.offsetHeight>window.innerHeight-12)top=Math.max(12,r.top-el.offsetHeight-8);el.style.top=top+'px';
+    note={el:el,bid:bid,lid:null};el.querySelector('[data-af=rev]').focus();
+    el.addEventListener('keydown',function(e){if(e.key==='Escape')closeNote();});
+    el.addEventListener('click',async function(e){
+      if(e.target.closest('[data-bclose]')){closeNote();return;}
+      var del=e.target.closest('[data-adel]'),save=e.target.closest('[data-asave]');if(!del&&!save)return;
+      var body={rev:null,exp:null,note:''};
+      if(save){var rv=el.querySelector('[data-af=rev]').value.trim(),ev=el.querySelector('[data-af=exp]').value.trim();
+        if((rv&&isNaN(+rv))||(ev&&isNaN(+ev))){el.querySelector('.bnote-err').textContent='数字で入力してください';return;}
+        body={rev:rv===''?null:+rv,exp:ev===''?null:+ev,note:el.querySelector('[data-af=note]').value.trim()};}
+      try{await api('PUT','/api/actuals/'+bid+'/'+ym,body);budOpen[bid]=true;closeNote();setStatus('実績を保存しました');await load();}catch(x){fail(x);}
     });
   }
   function closeNote(){if(note&&note.el)note.el.remove();note=null;}
@@ -290,7 +337,7 @@
   function closeEdit(){document.getElementById('modal').hidden=true;editing=null;noteEdit=null;noteDel=null;document.getElementById('noteNew').value='';}
   async function stamp(o){return o;}
   function api(m,p,b){return fetch(API+p,{method:m,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){if(r.status===401){if(TOKEN){TOKEN='';closeEdit();showLogin('時間がたったため、もう一度ログインしてください');}throw {code:'unauthorized'};}if(r.status===403){return r.json().then(function(j){if(j.error==='must_change'){showChange();throw {code:'unauthorized'};}throw {code:'forbidden'};});}if(!r.ok)throw {code:'http'};return r.json();});}
-  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;budgets=(d.budgets||[]).map(function(b){try{b.lines=JSON.parse(b.lines||'[]');}catch(e){b.lines=[];}return b;});canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
+  async function load(){var d=await api('GET','/api/data');var g={};d.groups.forEach(function(x){g[x.id]=x;});var t={};d.tasks.forEach(function(x){x.done=!!x.done;t[x.id]=x;});var n={};(d.notes||[]).forEach(function(x){(n[x.task_id]=n[x.task_id]||[]).push(x);});groups=g;tasks=t;notes=n;actuals={};(d.actuals||[]).forEach(function(a){actuals[a.company+'|'+a.ym]=a;});budgets=(d.budgets||[]).map(function(b){try{b.lines=JSON.parse(b.lines||'[]');}catch(e){b.lines=[];}return b;});canWrite=true;if(view()!=='log'||!document.getElementById('allLog'))render();}
   function fail(e){if(e&&e.code==='unauthorized')return;if(e&&e.code==='forbidden'){setStatus('ほかの人の記録は変更できません',true);return;}setStatus('保存できませんでした。通信状況を確認して、もう一度お試しください',true);}
   document.getElementById('form').addEventListener('submit',async function(ev){
     ev.preventDefault(); if(!canWrite)return;
@@ -322,6 +369,7 @@
   });
   app.addEventListener('click',function(e){
     var sb=e.target.closest('[data-bsel]');if(sb){bsel=sb.dataset.bsel;try{localStorage.setItem('todo-bsel',bsel);}catch(x){}render();return;}
+    var yc=e.target.closest('[data-yj]');if(yc&&canWrite){e.preventDefault();openActual(yc.dataset.yj,yc.dataset.ym,yc);return;}
     var t=e.target.closest('[data-badd],[data-bed],[data-bcp]'); if(!t||!canWrite)return;
     e.preventDefault();
     if(t.dataset.badd)openNote(t.dataset.badd,null,'new',t);

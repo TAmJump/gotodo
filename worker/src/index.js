@@ -130,9 +130,10 @@ export default {
         const g = await env.DB.prepare("SELECT * FROM groups ORDER BY o").all();
         const t = await env.DB.prepare("SELECT * FROM tasks ORDER BY d, o").all();
         const n = await env.DB.prepare("SELECT * FROM notes ORDER BY at").all();
-        let b = { results: [] };
+        let b = { results: [] }, a = { results: [] };
         try { b = await env.DB.prepare("SELECT * FROM budgets ORDER BY o").all(); } catch (e) {}
-        return json({ me, groups: g.results, tasks: t.results, notes: n.results, budgets: b.results });
+        try { a = await env.DB.prepare("SELECT * FROM actuals").all(); } catch (e) {}
+        return json({ me, groups: g.results, tasks: t.results, notes: n.results, budgets: b.results, actuals: a.results });
       }
 
       if (req.method === "GET" && parts[1] === "logs") {
@@ -214,6 +215,29 @@ export default {
       }
 
       // 事業（利益化の目標・状況・メモ）
+      if (parts[1] === "actuals" && parts[2] && parts[3] && req.method === "PUT") {
+        const co = parts[2], ym = parts[3];
+        if (!/^\d{4}-\d{2}$/.test(ym)) return json({ error: "bad_request" }, 400);
+        const bud = await env.DB.prepare("SELECT name FROM budgets WHERE id = ?").bind(co).first();
+        if (!bud) return json({ error: "not_found" }, 404);
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS actuals (id TEXT PRIMARY KEY, company TEXT, ym TEXT, rev REAL, exp REAL, note TEXT DEFAULT '', by TEXT, at TEXT)").run();
+        const body = await req.json();
+        const num = (v) => (v === null || v === "" || v === undefined || isNaN(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
+        const rev = num(body.rev), exp = num(body.exp), note = String(body.note || "").slice(0, 500);
+        const id = co + "|" + ym;
+        const before = await env.DB.prepare("SELECT * FROM actuals WHERE id = ?").bind(id).first();
+        const f = (v) => (v === null || v === undefined ? "未入力" : v + "万円");
+        if (rev === null && exp === null && !note) {
+          await env.DB.prepare("DELETE FROM actuals WHERE id = ?").bind(id).run();
+          if (before) await addLog(env, "b:" + co, me, "budget", `${bud.name}の実績（${ym}）を削除`);
+          return json({ ok: true });
+        }
+        await env.DB.prepare("INSERT INTO actuals(id,company,ym,rev,exp,note,by,at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET rev=excluded.rev, exp=excluded.exp, note=excluded.note, by=excluded.by, at=excluded.at")
+          .bind(id, co, ym, rev, exp, note, me, nowIso()).run();
+        await addLog(env, "b:" + co, me, "budget", `${bud.name}の実績（${ym}）／売上 ${before ? f(before.rev) + " → " : ""}${f(rev)}、支出 ${before ? f(before.exp) + " → " : ""}${f(exp)}`);
+        return json({ ok: true });
+      }
+
       if (parts[1] === "budgets" && parts[2] && req.method === "PUT") {
         const before = await env.DB.prepare("SELECT * FROM budgets WHERE id = ?").bind(parts[2]).first();
         if (!before) return json({ error: "not_found" }, 404);
@@ -235,6 +259,13 @@ export default {
           unit: String(l.unit || "").slice(0, 10),
           qlabel: String(l.qlabel || "").slice(0, 20),
           hpu: Math.round((Number(l.hpu) || 0) * 10) / 10,
+          hpq: Math.round((Number(l.hpq) || 0) * 10) / 10,
+          hpnew: Math.round((Number(l.hpnew) || 0) * 10) / 10,
+          bill: l.bill === "new" || l.bill === "base" ? l.bill : "",
+          c0: Math.max(0, Math.round(Number(l.c0) || 0)),
+          cnew: Math.max(0, Math.round(Number(l.cnew) || 0)),
+          cstop: Math.max(0, Math.round(Number(l.cstop) || 0)),
+          cstopFrom: ym.test(l.cstopFrom) ? l.cstopFrom : "",
         })).filter((l) => l.n);
         let old = [];
         try { old = JSON.parse(before.lines || "[]"); } catch (e) {}
@@ -246,7 +277,7 @@ export default {
         lines.forEach((l) => {
           const o = oById[l.id];
           if (!o) msgs.push("追加：" + desc(l));
-          else if (["k", "n", "m", "inc", "qty", "qinc", "unit", "hpu", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
+          else if (["k", "n", "m", "inc", "qty", "qinc", "unit", "hpu", "hpq", "hpnew", "bill", "c0", "cnew", "cstop", "cstopFrom", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
         });
         old.forEach((o) => { if (!nById[o.id]) msgs.push("削除：" + desc(o)); });
         if (!msgs.length) return json({ ok: true, unchanged: true });

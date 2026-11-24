@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: 上部に全体進捗とビュー切替（一覧・ガント・カレンダー・利益化）。データは共有DBから読み、グループ全員で更新 */
+/* Layout: 上部に全体進捗とビュー切替（一覧・ガント・カレンダー・予実）。データは共有DBから読み、グループ全員で更新 */
 :root{
   --bg:#ffffff; --surface:#ffffff; --fg:#111111; --muted:#444444; --line:#bdbdbd; --line-soft:#e0e0e0;
   --accent:#0050FF; --accent-soft:#ffffff; --warn:#FFC800; --warn-soft:#FFC800; --late:#E60012; --late-soft:#E60012;
@@ -179,6 +179,20 @@ table.bmon td.neg{color:var(--late)}
 .bnote label.bchk{display:flex;align-items:center;gap:6px;font-size:12.5px}
 .bnote label.bchk input{width:auto;margin:0}
 .bprev{font-size:11.5px;color:#555;margin:2px 0 0}
+.byj{flex-basis:100%;font-size:12.5px;color:var(--muted)}
+.byj b{color:var(--fg);font-family:var(--font-mono)}
+.byj b.neg{color:var(--late)}
+.bgroup .byj{margin-top:8px}
+table.bmon tr.bsec.act td{background:#E8F1FF}
+table.bmon tr.bsec.act td.bn{background:#E8F1FF}
+.bcell{font:inherit;font-family:var(--font-mono);font-size:12.5px;min-width:44px;padding:3px 6px;border:1px solid var(--accent);border-radius:6px;background:#fff;color:var(--fg);cursor:pointer;text-align:right}
+.bcell.empty{color:var(--accent);text-align:center;border-style:dashed}
+.bcell:hover{background:var(--accent);color:#fff}
+.bcell:disabled{border-color:var(--line);cursor:default}
+table.bmon tr.diff td{font-weight:600}
+table.bmon tr.bqty.bend td{color:var(--fg);font-weight:600}
+.bnote details.bmem{margin-top:8px;border:1px dashed #c9a800;border-radius:4px;padding:4px 8px}
+.bnote details.bmem summary{cursor:pointer;font-size:12px}
 table.bmon tr.bqty td{font-size:11.5px;color:var(--muted);padding-top:0;border-bottom-style:dashed}
 table.bmon tr.bqty td.bn{padding-left:20px}
 table.bmon tr.hrs td{color:var(--fg)}
@@ -254,7 +268,7 @@ img{max-width:100%}
       <a href="#list" data-view="list">一覧</a>
       <a href="#gantt" data-view="gantt">ガントチャート</a>
       <a href="#calendar" data-view="calendar">カレンダー</a>
-      <a href="#profit" data-view="profit">利益化</a>
+      <a href="#profit" data-view="profit">予実</a>
       <a href="#log" data-view="log">履歴</a>
     </nav>
     <div class="tools">
