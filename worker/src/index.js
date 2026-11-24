@@ -230,6 +230,11 @@ export default {
           note: String(l.note || "").slice(0, 500),
           tax: !!l.tax,
           inc: Math.round((Number(l.inc) || 0) * 10) / 10,
+          qty: Math.max(0, Math.round(Number(l.qty) || 0)),
+          qinc: Math.round(Number(l.qinc) || 0),
+          unit: String(l.unit || "").slice(0, 10),
+          qlabel: String(l.qlabel || "").slice(0, 20),
+          hpu: Math.round((Number(l.hpu) || 0) * 10) / 10,
         })).filter((l) => l.n);
         let old = [];
         try { old = JSON.parse(before.lines || "[]"); } catch (e) {}
@@ -241,7 +246,7 @@ export default {
         lines.forEach((l) => {
           const o = oById[l.id];
           if (!o) msgs.push("追加：" + desc(l));
-          else if (["k", "n", "m", "inc", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
+          else if (["k", "n", "m", "inc", "qty", "qinc", "unit", "hpu", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
         });
         old.forEach((o) => { if (!nById[o.id]) msgs.push("削除：" + desc(o)); });
         if (!msgs.length) return json({ ok: true, unchanged: true });

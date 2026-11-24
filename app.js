@@ -129,6 +129,9 @@
   function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});MONTHS().forEach(function(m){e+=ctax(b,m);});return {r:r,e:e,p:r-e};}
   function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?gross(l,m):0);},0)+(k==='exp'?ctax(b,m):0);}
   function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/MONTHS().length)+'</b></div></div>';}
+  function qtyM(l,m){return (+l.qty||0)+(+l.qinc||0)*Math.max(0,ymN(m)-ymN(l.from));}
+  function hasQty(l){return (+l.qty||0)>0||(+l.qinc||0)>0;}
+  function hrsM(b,m){return b.lines.reduce(function(s,l){return s+(hasQty(l)&&inM(l,m)?qtyM(l,m)*(+l.hpu||0):0);},0);}
   function budTable(b){
     var ms=MONTHS();
     var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
@@ -136,13 +139,15 @@
       return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':'')+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
         +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(gross(l,m)):'–')+'</td>';}).join('')
         +'<td class="n"><b>'+num1(lineYear(l))+'</b></td>'
-        +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>';}).join('');}
+        +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>'
+      +(hasQty(l)?'<tr class="bqty"><td class="bn">'+esc(l.qlabel||'人数')+'（'+esc(l.unit||'人')+'）'+(+l.hpu?'／稼働 '+num1(+l.hpu)+'時間・'+esc(l.unit||'人')+'あたり':'')+'</td>'+ms.map(function(m){return '<td class="n">'+(inM(l,m)?num1(qtyM(l,m)):'')+'</td>';}).join('')+'<td></td><td></td></tr>':'');}).join('');}
     function sum(lbl,f,cls){return '<tr class="bsum '+(cls||'')+'"><td class="bn">'+lbl+'</td>'+ms.map(function(m){var v=f(m);return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'')+num1(Math.abs(v))+'</td>';}).join('')+'<td class="n">'+(function(){var t=ms.reduce(function(s,m){return s+f(m);},0);return (t<0?'▲':'')+num1(Math.abs(t));})()+'</td><td></td></tr>';}
     return '<div class="bscroll"><table class="bmon"><thead><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">売上</td></tr>'+head+'</thead><tbody>'+rows('rev')
       +sum('売上計',function(m){return budMonth(b,'rev',m);},'rev')+'</tbody>'
       +'<tbody><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">支出</td></tr>'+rows('exp')+taxRow(b,ms)
       +sum('支出計',function(m){return budMonth(b,'exp',m);})+'</tbody>'
-      +'<tbody>'+sum('損益',function(m){return budMonth(b,'rev',m)-budMonth(b,'exp',m);},'pl')+'</tbody></table></div>';
+      +'<tbody>'+sum('損益',function(m){return budMonth(b,'rev',m)-budMonth(b,'exp',m);},'pl')+'</tbody>'
+      +(b.lines.some(function(l){return hasQty(l)&&+l.hpu;})?'<tbody><tr class="bsum hrs"><td class="bn">稼働時間（月・合計）</td>'+ms.map(function(m){var h=hrsM(b,m);return '<td class="n">'+(h?num1(h):'')+'</td>';}).join('')+'<td class="n">'+num1(ms.reduce(function(s,m){return s+hrsM(b,m);},0))+'</td><td></td></tr></tbody>':'')+'</table></div>';
   }
   function taxRow(b,ms){var t=ms.reduce(function(s,m){return s+ctax(b,m);},0);if(!t)return '';
     return '<tr class="btax"><td class="bn"><b>消費税（納付見込み・自動計算）</b><small>課税売上の10% − 課税支出の10%。実際の納付は中間・確定申告時</small></td>'+ms.map(function(m){var v=ctax(b,m);return '<td class="n'+(v?'':' off')+'">'+(v?num1(v):'–')+'</td>';}).join('')+'<td class="n"><b>'+num1(t)+'</b></td><td></td></tr>';}
@@ -171,6 +176,8 @@
       +'<div class="bnote-r"><label>区分<select data-bf="k"><option value="rev">売上</option><option value="exp">支出</option></select></label>'
       +'<label>月額（万円）<input data-bf="m" type="number" step="0.1" inputmode="decimal"></label></div>'
       +'<label>毎月の増加額（万円・任意）<input data-bf="inc" type="number" step="0.1" inputmode="decimal" placeholder="例：契約者が毎月2人増える → 1.1"></label>'
+      +'<div class="bnote-r"><label>人数など（開始時）<input data-bf="qty" type="number" step="1" inputmode="numeric"></label><label>毎月の増加<input data-bf="qinc" type="number" step="1" inputmode="numeric"></label></div>'
+      +'<div class="bnote-r"><label>単位<input data-bf="unit" type="text" maxlength="10" placeholder="人・件・棟"></label><label>1単位の稼働（時間/月）<input data-bf="hpu" type="number" step="0.1" inputmode="decimal"></label></div>'
       +'<label class="bchk"><input data-bf="tax" type="checkbox"> 消費税10%がかかる（月額は税抜で入力）</label><p class="bprev"></p>'
       +'<label>事業名・相手先<input data-bf="n" type="text" maxlength="200" placeholder="例：医療法人〇〇 訪看コンサル"></label>'
       +'<div class="bnote-r"><label>開始月<input data-bf="from" type="month" min="'+BP0+'" max="'+BP1+'"></label><label>終了月<input data-bf="to" type="month" min="'+BP0+'" max="'+BP1+'"></label></div>'
@@ -178,7 +185,7 @@
       +'<p class="bnote-err" aria-live="polite"></p>'
       +'<div class="bnote-b">'+(mode==='edit'?'<button type="button" class="btn danger" data-bdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-bsave>保存</button></span></div>';
     function prev(){var m=+el.querySelector('[data-bf=m]').value||0,t=el.querySelector('[data-bf=tax]').checked;el.querySelector('.bprev').textContent=t?'税込 月'+num1(m*1.1)+'万円で表示されます':'入力した金額のまま表示されます';}
-    function fill(x){['k','n','m','inc','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null||x[f]===0?(f==='m'&&x[f]===0?0:''):x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
+    function fill(x){['k','n','m','inc','qty','qinc','unit','hpu','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null||x[f]===0?(f==='m'&&x[f]===0?0:''):x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
     fill(l);
     if(mode==='copy')el.querySelector('[data-bf=n]').value=l.n+'（コピー）';
     el.addEventListener('input',function(e){if(e.target.dataset.bf==='m'||e.target.dataset.bf==='tax')prev();});
@@ -201,7 +208,7 @@
       var lines=b.lines.map(function(x){return JSON.parse(JSON.stringify(x));}), err=el.querySelector('.bnote-err');
       if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent='本当に削除';return;}lines=lines.filter(function(x){return x.id!==note.lid;});}
       else{
-        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;v.inc=Math.round((+el.querySelector('[data-bf=inc]').value||0)*10)/10;
+        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;v.inc=Math.round((+el.querySelector('[data-bf=inc]').value||0)*10)/10;v.qty=+el.querySelector('[data-bf=qty]').value||0;v.qinc=+el.querySelector('[data-bf=qinc]').value||0;v.unit=el.querySelector('[data-bf=unit]').value.trim();v.hpu=+el.querySelector('[data-bf=hpu]').value||0;
         if(!v.n){err.textContent='事業名を入力してください';el.querySelector('[data-bf=n]').focus();return;}
         if(v.m===''||isNaN(+v.m)){err.textContent='月額を数字で入力してください';el.querySelector('[data-bf=m]').focus();return;}
         if(!v.from||!v.to||v.from>v.to){err.textContent='開始月と終了月を確認してください';return;}
