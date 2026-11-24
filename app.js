@@ -175,8 +175,8 @@
       +'<div class="bsel" role="group" aria-label="表示する期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2]+'</button>';}).join('')+'</div>'
       +'<div class="bgroup"><h3>グループ全体（予算）</h3>'+budNums(all)+(function(){var Y=budgets.map(yojitsu).filter(Boolean);if(!Y.length)return yjLine(null);var t={n:Math.max.apply(null,Y.map(function(y){return y.n;})),br:0,be:0,ar:0,ae:0};Y.forEach(function(y){t.br+=y.br;t.be+=y.be;t.ar+=y.ar;t.ae+=y.ae;});return yjLine(t);})()+'</div>';
     budgets.forEach(function(b){var t=budTotals(b);
-      h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span>'+yjLine(yojitsu(b))+'</summary>'
-        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/MONTHS().length)+'</b> 万円（期間平均）'
+      h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+(b.purpose?'<span class="bpurp" title="'+esc(b.purpose)+'"><em>目的</em>'+esc(b.purpose)+'</span>':'')+budNums(t)+'<span class="bopen">内訳</span>'+yjLine(yojitsu(b))+'</summary>'
+        +'<div class="bdetail">'+(b.purpose?'<p class="bpurp-full"><em>目的</em>'+esc(b.purpose)+'</p>':'')+'<p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/MONTHS().length)+'</b> 万円（期間平均）'
         +(canWrite?'<button type="button" class="btn primary badd" data-badd="'+esc(b.id)+'">＋ 事業を追加</button>':'')+'</p>'
         +budTable(b)+'</div></details>';});
     return h+'</section><h2 class="ptitle">事業ごとの利益化の目標</h2>';
