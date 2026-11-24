@@ -1,0 +1,50 @@
+name: TODOに反映
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**"]
+  workflow_dispatch:
+concurrency: gotodo-apply
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: b9de28abfd009bbf696ceec4da62c5b8
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 変更されたファイルを調べる
+        id: diff
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then BEFORE=$(git rev-parse HEAD~1); fi
+          git diff --name-only "$BEFORE" HEAD > /tmp/changed.txt
+          git diff --name-only --diff-filter=A "$BEFORE" HEAD -- updates/ | grep '\.sql\.cms$' | sort > /tmp/added.txt || true
+          cat /tmp/changed.txt
+          if grep -q '^worker/src/\|^worker/wrangler.toml' /tmp/changed.txt; then echo "deploy=1" >> $GITHUB_OUTPUT; fi
+      - name: サーバー（Worker）を反映
+        if: steps.diff.outputs.deploy == '1'
+        run: npx --yes wrangler@4 deploy
+      - name: データ（予算・TODO）を反映
+        env:
+          GOTODO_KEY: ${{ secrets.GOTODO_KEY }}
+        run: |
+          [ -s /tmp/added.txt ] || { echo "反映するデータはありません"; exit 0; }
+          umask 077; printf '%s\n' "$GOTODO_KEY" > /tmp/key.pem
+          while read f; do
+            [ -n "$f" ] || continue
+            p="../$f"
+            openssl cms -decrypt -binary -inform DER -in "$p" -inkey /tmp/key.pem -out /tmp/u.sql
+            npx --yes wrangler@4 d1 execute gotodo-db --remote --yes --file=/tmp/u.sql
+            rm -f /tmp/u.sql
+            echo "反映しました：$f"
+          done < /tmp/added.txt
+          rm -f /tmp/key.pem
