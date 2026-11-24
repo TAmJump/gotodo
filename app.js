@@ -270,7 +270,7 @@
   function closeNote(){if(note&&note.el)note.el.remove();note=null;}
 
   /* ---------- 目標ツリー ---------- */
-  var PEOPLE=['後藤基温','大下甚','伊藤晋','森久保康希'], gsel='大下甚';
+  var PEOPLE=['大下甚','伊藤晋','森久保康希'], gsel='大下甚';
   try{gsel=localStorage.getItem('todo-gsel')||gsel;if(PEOPLE.indexOf(gsel)<0)gsel='大下甚';}catch(e){}
   function goalOf(id){return goals[id]||{id:id,role:'',ideal:'',income:null,year:'',tree:[]};}
   function gnFind(arr,id,par){for(var i=0;i<arr.length;i++){if(arr[i].id===id)return {n:arr[i],arr:arr,i:i,par:par};var r=gnFind(arr[i].kids||[],id,arr[i]);if(r)return r;}return null;}
