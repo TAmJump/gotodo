@@ -7,3 +7,4 @@
 ```
 openssl cms -encrypt -binary -aes256 -outform DER -in update.sql -out updates/YYYYMMDD-n.sql.cms updates/recipient-cert.pem
 ```
+
