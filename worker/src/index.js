@@ -213,6 +213,40 @@ export default {
       }
 
       // 事業（利益化の目標・状況・メモ）
+      if (parts[1] === "budgets" && parts[2] && req.method === "PUT") {
+        const before = await env.DB.prepare("SELECT * FROM budgets WHERE id = ?").bind(parts[2]).first();
+        if (!before) return json({ error: "not_found" }, 404);
+        const body = await req.json();
+        if (!Array.isArray(body.lines) || body.lines.length > 200) return json({ error: "bad_request" }, 400);
+        const ym = /^\d{4}-\d{2}$/;
+        const lines = body.lines.map((l) => ({
+          id: String(l.id || newId("bl")).slice(0, 40),
+          k: l.k === "exp" ? "exp" : "rev",
+          n: String(l.n || "").slice(0, 200),
+          m: Math.round((Number(l.m) || 0) * 10) / 10,
+          from: ym.test(l.from) ? l.from : "2026-11",
+          to: ym.test(l.to) ? l.to : "2027-10",
+          note: String(l.note || "").slice(0, 500),
+        })).filter((l) => l.n);
+        let old = [];
+        try { old = JSON.parse(before.lines || "[]"); } catch (e) {}
+        const oById = Object.fromEntries(old.map((l) => [l.id, l]));
+        const nById = Object.fromEntries(lines.map((l) => [l.id, l]));
+        const kind = (l) => (l.k === "exp" ? "支出" : "売上");
+        const desc = (l) => `${kind(l)}「${short(l.n)}」月${l.m}万円 ${l.from}〜${l.to}`;
+        const msgs = [];
+        lines.forEach((l) => {
+          const o = oById[l.id];
+          if (!o) msgs.push("追加：" + desc(l));
+          else if (["k", "n", "m", "from", "to", "note"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
+        });
+        old.forEach((o) => { if (!nById[o.id]) msgs.push("削除：" + desc(o)); });
+        if (!msgs.length) return json({ ok: true, unchanged: true });
+        await env.DB.prepare("UPDATE budgets SET lines = ?, at = ? WHERE id = ?").bind(JSON.stringify(lines), nowIso(), parts[2]).run();
+        await addLog(env, "b:" + parts[2], me, "budget", `${before.name}の予算／` + msgs.join("／"));
+        return json({ ok: true });
+      }
+
       if (parts[1] === "groups" && parts[2] && req.method === "PUT") {
         const before = await env.DB.prepare("SELECT * FROM groups WHERE id = ?").bind(parts[2]).first();
         if (!before) return json({ error: "not_found" }, 404);

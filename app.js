@@ -111,25 +111,95 @@
       +'<div class="agenda"><h3>'+calMonth.getFullYear()+'年'+(calMonth.getMonth()+1)+'月が期限のタスク（'+ag.length+'件）</h3><ul>'+(ag.length?ag.map(taskLi).join(''):'<li class="task"><span></span><span class="t">この月が期限のタスクはありません。</span></li>')+'</ul></div>';
   }
 
+  var BP0='2026-11', BP1='2027-10', budOpen={}, note=null;
   function yen(v){return (v<0?'▲':'')+Math.abs(Math.round(v)).toLocaleString('ja-JP');}
+  function num1(v){return (Math.round(v*10)/10).toLocaleString('ja-JP',{maximumFractionDigits:1});}
   function ymN(s){var a=String(s).split('-');return (+a[0])*12+(+a[1])-1;}
-  function lineYear(l){return (+l.m||0)*Math.max(0,ymN(l.to)-ymN(l.from)+1);}
+  function ymS(n){return Math.floor(n/12)+'-'+String(n%12+1).padStart(2,'0');}
+  function MONTHS(){var r=[];for(var i=ymN(BP0);i<=ymN(BP1);i++)r.push(ymS(i));return r;}
+  function inM(l,m){var x=ymN(m);return x>=ymN(l.from)&&x<=ymN(l.to);}
+  function lineYear(l){return MONTHS().reduce(function(s,m){return s+(inM(l,m)?(+l.m||0):0);},0);}
   function ymJ(s){var a=String(s).split('-');return a[0]+'年'+(+a[1])+'月';}
+  function per(l){return (l.from===BP0&&l.to===BP1)?'全期間':(l.from===l.to?ymJ(l.from)+'のみ':ymJ(l.from)+'〜'+ymJ(l.to));}
   function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});return {r:r,e:e,p:r-e};}
+  function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?(+l.m||0):0);},0);}
   function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/12)+'</b></div></div>';}
-  function budRows(b,k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){var per=(l.from==='2026-11'&&l.to==='2027-10')?'全期間':(l.from===l.to?ymJ(l.from)+'のみ':ymJ(l.from)+'〜'+ymJ(l.to));return '<tr><td>'+esc(l.n)+(l.note?'<small>'+esc(l.note)+'</small>':'')+'</td><td class="n">'+(+l.m).toLocaleString('ja-JP',{maximumFractionDigits:1})+'</td><td>'+per+'</td><td class="n">'+yen(lineYear(l))+'</td></tr>';}).join('');}
+  function budTable(b){
+    var ms=MONTHS();
+    var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
+    function rows(k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){
+      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>月'+num1(+l.m||0)+'万円／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
+        +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(+l.m||0):'–')+'</td>';}).join('')
+        +'<td class="n"><b>'+num1(lineYear(l))+'</b></td>'
+        +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>';}).join('');}
+    function sum(lbl,f,cls){return '<tr class="bsum '+(cls||'')+'"><td class="bn">'+lbl+'</td>'+ms.map(function(m){var v=f(m);return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'')+num1(Math.abs(v))+'</td>';}).join('')+'<td class="n">'+(function(){var t=ms.reduce(function(s,m){return s+f(m);},0);return (t<0?'▲':'')+num1(Math.abs(t));})()+'</td><td></td></tr>';}
+    return '<div class="bscroll"><table class="bmon"><thead><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">売上</td></tr>'+head+'</thead><tbody>'+rows('rev')
+      +sum('売上計',function(m){return budMonth(b,'rev',m);},'rev')+'</tbody>'
+      +'<tbody><tr class="bsec"><td class="bn" colspan="'+(ms.length+3)+'">支出</td></tr>'+rows('exp')
+      +sum('支出計',function(m){return budMonth(b,'exp',m);})+'</tbody>'
+      +'<tbody>'+sum('損益',function(m){return budMonth(b,'rev',m)-budMonth(b,'exp',m);},'pl')+'</tbody></table></div>';
+  }
   function rBudget(){
     if(!budgets.length)return '';
     var all={r:0,e:0,p:0};budgets.forEach(function(b){var t=budTotals(b);all.r+=t.r;all.e+=t.e;all.p+=t.p;});
-    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円／期間 '+esc(budgets[0].period||'')+'</small></h2>'
+    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円／期間 '+ymJ(BP0)+'〜'+ymJ(BP1)+'</small></h2>'
       +'<div class="bgroup"><h3>グループ全体</h3>'+budNums(all)+'</div>';
     budgets.forEach(function(b){var t=budTotals(b);
-      h+='<details class="bco"><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
-        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/12)+'</b> 万円</p>'
-        +'<table><thead><tr><th>売上</th><th class="n">月額</th><th>期間</th><th class="n">期間計</th></tr></thead><tbody>'+budRows(b,'rev')+'</tbody>'
-        +'<thead><tr><th>支出</th><th class="n">月額</th><th>期間</th><th class="n">期間計</th></tr></thead><tbody>'+budRows(b,'exp')+'</tbody></table></div></details>';});
+      h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
+        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/12)+'</b> 万円（期間平均）'
+        +(canWrite?'<button type="button" class="btn primary badd" data-badd="'+esc(b.id)+'">＋ 事業を追加</button>':'')+'</p>'
+        +budTable(b)+'</div></details>';});
     return h+'</section><h2 class="ptitle">事業ごとの利益化</h2>';
   }
+  function findLine(bid,lid){var b=budgets.filter(function(x){return x.id===bid;})[0];return b?b.lines.filter(function(l){return l.id===lid;})[0]:null;}
+  function openNote(bid,line,mode,anchor){
+    closeNote();
+    var b=budgets.filter(function(x){return x.id===bid;})[0]; if(!b)return;
+    var l=line?JSON.parse(JSON.stringify(line)):{k:'rev',n:'',m:'',from:BP0,to:BP1,note:''};
+    var copyOpts='<option value="">（新しく入力する）</option>'+budgets.map(function(x){return '<optgroup label="'+esc(x.name)+'">'+x.lines.map(function(y){return '<option value="'+esc(x.id+'|'+y.id)+'">'+(y.k==='exp'?'［支出］':'［売上］')+esc(y.n)+'（月'+num1(+y.m||0)+'）</option>';}).join('')+'</optgroup>';}).join('');
+    var el=document.createElement('div'); el.className='bnote'; el.setAttribute('role','dialog'); el.setAttribute('aria-label','予算の入力');
+    el.innerHTML='<div class="bnote-h"><b>'+(mode==='edit'?'事業を修正':mode==='copy'?'事業を複製して追加':'事業を追加')+'</b><span>'+esc(b.name)+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
+      +(mode==='edit'?'':'<label>既存の事業からコピー<select data-bf="copy">'+copyOpts+'</select></label>')
+      +'<div class="bnote-r"><label>区分<select data-bf="k"><option value="rev">売上</option><option value="exp">支出</option></select></label>'
+      +'<label>月額（万円）<input data-bf="m" type="number" step="0.1" inputmode="decimal"></label></div>'
+      +'<label>事業名・相手先<input data-bf="n" type="text" maxlength="200" placeholder="例：医療法人〇〇 訪看コンサル"></label>'
+      +'<div class="bnote-r"><label>開始月<input data-bf="from" type="month" min="'+BP0+'" max="'+BP1+'"></label><label>終了月<input data-bf="to" type="month" min="'+BP0+'" max="'+BP1+'"></label></div>'
+      +'<label>メモ（前提など）<textarea data-bf="note" rows="2" maxlength="500"></textarea></label>'
+      +'<p class="bnote-err" aria-live="polite"></p>'
+      +'<div class="bnote-b">'+(mode==='edit'?'<button type="button" class="btn danger" data-bdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-bsave>保存</button></span></div>';
+    function fill(x){['k','n','m','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null?'':x[f];});}
+    fill(l);
+    if(mode==='copy')el.querySelector('[data-bf=n]').value=l.n+'（コピー）';
+    var cp=el.querySelector('[data-bf=copy]');
+    if(cp)cp.addEventListener('change',function(){if(!cp.value)return;var p=cp.value.split('|'),src=findLine(p[0],p[1]);if(src){fill(src);el.querySelector('[data-bf=n]').select();}});
+    document.body.appendChild(el);
+    var r=anchor&&anchor.getBoundingClientRect(), w=Math.min(360,window.innerWidth-24);
+    el.style.width=w+'px';
+    var left=r?Math.min(Math.max(12,r.right-w),window.innerWidth-w-12):(window.innerWidth-w)/2;
+    var top=r?r.bottom+8:80; if(top+el.offsetHeight>window.innerHeight-12)top=Math.max(12,(r?r.top:window.innerHeight)-el.offsetHeight-8);
+    el.style.left=left+'px'; el.style.top=top+'px';
+    note={el:el,bid:bid,lid:mode==='edit'?l.id:null};
+    (cp||el.querySelector('[data-bf=n]')).focus();
+    el.addEventListener('keydown',function(e){if(e.key==='Escape')closeNote();});
+    el.addEventListener('click',async function(e){
+      if(e.target.closest('[data-bclose]')){closeNote();return;}
+      var del=e.target.closest('[data-bdel]'), save=e.target.closest('[data-bsave]');
+      if(!del&&!save)return;
+      var lines=b.lines.map(function(x){return JSON.parse(JSON.stringify(x));}), err=el.querySelector('.bnote-err');
+      if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent='本当に削除';return;}lines=lines.filter(function(x){return x.id!==note.lid;});}
+      else{
+        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});
+        if(!v.n){err.textContent='事業名を入力してください';el.querySelector('[data-bf=n]').focus();return;}
+        if(v.m===''||isNaN(+v.m)){err.textContent='月額を数字で入力してください';el.querySelector('[data-bf=m]').focus();return;}
+        if(!v.from||!v.to||v.from>v.to){err.textContent='開始月と終了月を確認してください';return;}
+        v.m=Math.round(+v.m*10)/10;
+        if(note.lid){lines=lines.map(function(x){return x.id===note.lid?Object.assign(x,v):x;});}
+        else{v.id='bl'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);lines.push(v);}
+      }
+      try{await api('PUT','/api/budgets/'+bid,{lines:lines});budOpen[bid]=true;closeNote();setStatus('予算を保存しました');await load();}catch(x){fail(x);}
+    });
+  }
+  function closeNote(){if(note&&note.el)note.el.remove();note=null;}
   function rProfit(){
     var gs=sortedGroups(), cnt={none:0,prep:0,revenue:0,profit:0};
     gs.forEach(function(g){if(g.goal)cnt[g.status||'none']++;});
@@ -230,6 +300,14 @@
     var ad=e.target.closest('[data-add]'); if(ad){openEdit(null,ad.getAttribute('data-add'));return;}
     var mb=e.target.closest('[data-month]'); if(mb){calMonth=pd(mb.getAttribute('data-month')+'-01');render();}
   });
+  app.addEventListener('click',function(e){
+    var t=e.target.closest('[data-badd],[data-bed],[data-bcp]'); if(!t||!canWrite)return;
+    e.preventDefault();
+    if(t.dataset.badd)openNote(t.dataset.badd,null,'new',t);
+    else if(t.dataset.bed)openNote(t.dataset.bed,findLine(t.dataset.bed,t.dataset.line),'edit',t);
+    else openNote(t.dataset.bcp,findLine(t.dataset.bcp,t.dataset.line),'copy',t);
+  });
+  app.addEventListener('toggle',function(e){var d=e.target;if(d.dataset&&d.dataset.bco)budOpen[d.dataset.bco]=d.open;},true);
   app.addEventListener('change',async function(e){
     var id=e.target.getAttribute('data-tg');
     if(id&&canWrite){var o=await stamp({done:e.target.checked});try{tasks[id].done=o.done;await api('PUT','/api/tasks/'+id,o);setStatus('更新しました');await load();}catch(err){fail(err);}return;}
