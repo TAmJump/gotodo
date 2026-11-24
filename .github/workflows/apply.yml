@@ -27,7 +27,6 @@ jobs:
           BEFORE="${{ github.event.before }}"
           if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then BEFORE=$(git rev-parse HEAD~1); fi
           git diff --name-only "$BEFORE" HEAD > /tmp/changed.txt
-          git diff --name-only --diff-filter=A "$BEFORE" HEAD -- updates/ | grep '\.sql\.cms$' | sort > /tmp/added.txt || true
           cat /tmp/changed.txt
           if grep -q '^worker/src/\|^worker/wrangler.toml' /tmp/changed.txt; then echo "deploy=1" >> $GITHUB_OUTPUT; fi
       - name: サーバー（Worker）を反映
@@ -37,14 +36,16 @@ jobs:
         env:
           GOTODO_KEY: ${{ secrets.GOTODO_KEY }}
         run: |
-          [ -s /tmp/added.txt ] || { echo "反映するデータはありません"; exit 0; }
           umask 077; printf '%s\n' "$GOTODO_KEY" > /tmp/key.pem
-          while read f; do
-            [ -n "$f" ] || continue
-            p="../$f"
+          npx --yes wrangler@4 d1 execute gotodo-db --remote --yes --command "CREATE TABLE IF NOT EXISTS applied_updates (name TEXT PRIMARY KEY, at TEXT)" > /dev/null
+          npx --yes wrangler@4 d1 execute gotodo-db --remote --yes --json --command "SELECT name FROM applied_updates" > /tmp/applied.json
+          for p in $(ls updates/*.sql.cms 2>/dev/null | sort); do
+            n=$(basename "$p")
+            if grep -q "\"$n\"" /tmp/applied.json; then echo "反映済み：$n"; continue; fi
             openssl cms -decrypt -binary -inform DER -in "$p" -inkey /tmp/key.pem -out /tmp/u.sql
+            printf "\nINSERT OR IGNORE INTO applied_updates(name,at) VALUES('%s',datetime('now'));\n" "$n" >> /tmp/u.sql
             npx --yes wrangler@4 d1 execute gotodo-db --remote --yes --file=/tmp/u.sql
             rm -f /tmp/u.sql
-            echo "反映しました：$f"
-          done < /tmp/added.txt
+            echo "反映しました：$n"
+          done
           rm -f /tmp/key.pem
