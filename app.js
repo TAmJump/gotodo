@@ -111,8 +111,8 @@
       +'<div class="agenda"><h3>'+calMonth.getFullYear()+'年'+(calMonth.getMonth()+1)+'月が期限のタスク（'+ag.length+'件）</h3><ul>'+(ag.length?ag.map(taskLi).join(''):'<li class="task"><span></span><span class="t">この月が期限のタスクはありません。</span></li>')+'</ul></div>';
   }
 
-  var BP0='2026-11', BP1='2028-10', budOpen={}, note=null;
-  var BRANGES={y1:['2026-11','2027-10','1年目（2026年11月〜2027年10月）'],y2:['2027-11','2028-10','2年目（2027年11月〜2028年10月）'],all:['2026-11','2028-10','2年合計（2026年11月〜2028年10月）']}, bsel='y1';
+  var BP0='2027-01', BP1='2028-12', budOpen={}, note=null;
+  var BRANGES={y1:['2027-01','2027-12','1年目（2027年1月〜12月）'],y2:['2028-01','2028-12','2年目（2028年1月〜12月）'],all:['2027-01','2028-12','2年合計（2027年1月〜2028年12月）']}, bsel='y1';
   try{bsel=localStorage.getItem('todo-bsel')||'y1';if(!BRANGES[bsel])bsel='y1';}catch(e){}
   function yen(v){return (v<0?'▲':'')+Math.abs(Math.round(v)).toLocaleString('ja-JP');}
   function num1(v){return (Math.round(v*10)/10).toLocaleString('ja-JP',{maximumFractionDigits:1});}
