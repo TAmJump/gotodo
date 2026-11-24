@@ -112,20 +112,22 @@
   }
 
   function yen(v){return (v<0?'▲':'')+Math.abs(Math.round(v)).toLocaleString('ja-JP');}
-  function lineYear(l){var f=+l.from||1,t=+l.to||12;return (+l.m||0)*Math.max(0,t-f+1);}
+  function ymN(s){var a=String(s).split('-');return (+a[0])*12+(+a[1])-1;}
+  function lineYear(l){return (+l.m||0)*Math.max(0,ymN(l.to)-ymN(l.from)+1);}
+  function ymJ(s){var a=String(s).split('-');return a[0]+'年'+(+a[1])+'月';}
   function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});return {r:r,e:e,p:r-e};}
-  function budNums(t){return '<div class="bnums"><div><span>年間売上</span><b>'+yen(t.r)+'</b></div><div><span>年間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/12)+'</b></div></div>';}
-  function budRows(b,k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){var per=(+l.from===1&&+l.to===12)?'通年':(l.from===l.to?l.from+'月のみ':l.from+'月〜'+l.to+'月');return '<tr><td>'+esc(l.n)+(l.note?'<small>'+esc(l.note)+'</small>':'')+'</td><td class="n">'+yen(l.m)+'</td><td>'+per+'</td><td class="n">'+yen(lineYear(l))+'</td></tr>';}).join('');}
+  function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/12)+'</b></div></div>';}
+  function budRows(b,k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){var per=(l.from==='2026-11'&&l.to==='2027-10')?'全期間':(l.from===l.to?ymJ(l.from)+'のみ':ymJ(l.from)+'〜'+ymJ(l.to));return '<tr><td>'+esc(l.n)+(l.note?'<small>'+esc(l.note)+'</small>':'')+'</td><td class="n">'+(+l.m).toLocaleString('ja-JP',{maximumFractionDigits:1})+'</td><td>'+per+'</td><td class="n">'+yen(lineYear(l))+'</td></tr>';}).join('');}
   function rBudget(){
     if(!budgets.length)return '';
     var all={r:0,e:0,p:0};budgets.forEach(function(b){var t=budTotals(b);all.r+=t.r;all.e+=t.e;all.p+=t.p;});
-    var h='<section class="budget"><h2>2027年 予算（保守的・仮）<small>単位：万円／期間 '+esc(budgets[0].period||'')+'</small></h2>'
+    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円／期間 '+esc(budgets[0].period||'')+'</small></h2>'
       +'<div class="bgroup"><h3>グループ全体</h3>'+budNums(all)+'</div>';
     budgets.forEach(function(b){var t=budTotals(b);
       h+='<details class="bco"><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
         +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/12)+'</b> 万円</p>'
-        +'<table><thead><tr><th>売上</th><th class="n">月額</th><th>期間</th><th class="n">年額</th></tr></thead><tbody>'+budRows(b,'rev')+'</tbody>'
-        +'<thead><tr><th>支出</th><th class="n">月額</th><th>期間</th><th class="n">年額</th></tr></thead><tbody>'+budRows(b,'exp')+'</tbody></table></div></details>';});
+        +'<table><thead><tr><th>売上</th><th class="n">月額</th><th>期間</th><th class="n">期間計</th></tr></thead><tbody>'+budRows(b,'rev')+'</tbody>'
+        +'<thead><tr><th>支出</th><th class="n">月額</th><th>期間</th><th class="n">期間計</th></tr></thead><tbody>'+budRows(b,'exp')+'</tbody></table></div></details>';});
     return h+'</section><h2 class="ptitle">事業ごとの利益化</h2>';
   }
   function rProfit(){
