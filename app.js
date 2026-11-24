@@ -111,12 +111,14 @@
       +'<div class="agenda"><h3>'+calMonth.getFullYear()+'年'+(calMonth.getMonth()+1)+'月が期限のタスク（'+ag.length+'件）</h3><ul>'+(ag.length?ag.map(taskLi).join(''):'<li class="task"><span></span><span class="t">この月が期限のタスクはありません。</span></li>')+'</ul></div>';
   }
 
-  var BP0='2026-11', BP1='2027-10', budOpen={}, note=null;
+  var BP0='2026-11', BP1='2028-10', budOpen={}, note=null;
+  var BRANGES={y1:['2026-11','2027-10','1年目（2026年11月〜2027年10月）'],y2:['2027-11','2028-10','2年目（2027年11月〜2028年10月）'],all:['2026-11','2028-10','2年合計（2026年11月〜2028年10月）']}, bsel='y1';
+  try{bsel=localStorage.getItem('todo-bsel')||'y1';if(!BRANGES[bsel])bsel='y1';}catch(e){}
   function yen(v){return (v<0?'▲':'')+Math.abs(Math.round(v)).toLocaleString('ja-JP');}
   function num1(v){return (Math.round(v*10)/10).toLocaleString('ja-JP',{maximumFractionDigits:1});}
   function ymN(s){var a=String(s).split('-');return (+a[0])*12+(+a[1])-1;}
   function ymS(n){return Math.floor(n/12)+'-'+String(n%12+1).padStart(2,'0');}
-  function MONTHS(){var r=[];for(var i=ymN(BP0);i<=ymN(BP1);i++)r.push(ymS(i));return r;}
+  function MONTHS(){var R=BRANGES[bsel],r=[];for(var i=ymN(R[0]);i<=ymN(R[1]);i++)r.push(ymS(i));return r;}
   function inM(l,m){var x=ymN(m);return x>=ymN(l.from)&&x<=ymN(l.to);}
   function gross(l){return (+l.m||0)*(l.tax?1.1:1);}
   function lineYear(l){return MONTHS().reduce(function(s,m){return s+(inM(l,m)?gross(l):0);},0);}
@@ -125,7 +127,7 @@
   function per(l){return (l.from===BP0&&l.to===BP1)?'全期間':(l.from===l.to?ymJ(l.from)+'のみ':ymJ(l.from)+'〜'+ymJ(l.to));}
   function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});MONTHS().forEach(function(m){e+=ctax(b,m);});return {r:r,e:e,p:r-e};}
   function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?gross(l):0);},0)+(k==='exp'?ctax(b,m):0);}
-  function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/12)+'</b></div></div>';}
+  function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/MONTHS().length)+'</b></div></div>';}
   function budTable(b){
     var ms=MONTHS();
     var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
@@ -146,11 +148,12 @@
   function rBudget(){
     if(!budgets.length)return '';
     var all={r:0,e:0,p:0};budgets.forEach(function(b){var t=budTotals(b);all.r+=t.r;all.e+=t.e;all.p+=t.p;});
-    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円（税込）／期間 '+ymJ(BP0)+'〜'+ymJ(BP1)+'</small></h2>'
+    var h='<section class="budget"><h2>会社別予算（保守的・仮）<small>単位：万円（税込）</small></h2>'
+      +'<div class="bsel" role="group" aria-label="表示する期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2]+'</button>';}).join('')+'</div>'
       +'<div class="bgroup"><h3>グループ全体</h3>'+budNums(all)+'</div>';
     budgets.forEach(function(b){var t=budTotals(b);
       h+='<details class="bco" data-bco="'+esc(b.id)+'"'+(budOpen[b.id]?' open':'')+'><summary><span class="bname">'+esc(b.name)+'<small>稼働 '+esc(b.staff)+'</small></span>'+budNums(t)+'<span class="bopen">内訳</span></summary>'
-        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/12)+'</b> 万円（期間平均）'
+        +'<div class="bdetail"><p>'+esc(b.note)+'</p><p class="be">損益分岐に必要な月売上：<b>'+yen(t.e/MONTHS().length)+'</b> 万円（期間平均）'
         +(canWrite?'<button type="button" class="btn primary badd" data-badd="'+esc(b.id)+'">＋ 事業を追加</button>':'')+'</p>'
         +budTable(b)+'</div></details>';});
     return h+'</section><h2 class="ptitle">事業ごとの利益化</h2>';
@@ -309,6 +312,7 @@
     var mb=e.target.closest('[data-month]'); if(mb){calMonth=pd(mb.getAttribute('data-month')+'-01');render();}
   });
   app.addEventListener('click',function(e){
+    var sb=e.target.closest('[data-bsel]');if(sb){bsel=sb.dataset.bsel;try{localStorage.setItem('todo-bsel',bsel);}catch(x){}render();return;}
     var t=e.target.closest('[data-badd],[data-bed],[data-bcp]'); if(!t||!canWrite)return;
     e.preventDefault();
     if(t.dataset.badd)openNote(t.dataset.badd,null,'new',t);
