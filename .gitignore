@@ -1,3 +1,5 @@
 node_modules/
 .wrangler/
 worker/budget*.sql
+worker/gotodo-*.sql
+*.反映済み.txt

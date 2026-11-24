@@ -228,18 +228,19 @@ export default {
           to: ym.test(l.to) ? l.to : "2027-10",
           note: String(l.note || "").slice(0, 500),
           tax: !!l.tax,
+          inc: Math.round((Number(l.inc) || 0) * 10) / 10,
         })).filter((l) => l.n);
         let old = [];
         try { old = JSON.parse(before.lines || "[]"); } catch (e) {}
         const oById = Object.fromEntries(old.map((l) => [l.id, l]));
         const nById = Object.fromEntries(lines.map((l) => [l.id, l]));
         const kind = (l) => (l.k === "exp" ? "支出" : "売上");
-        const desc = (l) => `${kind(l)}「${short(l.n)}」月${l.m}万円${l.tax ? "（税抜・課税）" : ""} ${l.from}〜${l.to}`;
+        const desc = (l) => `${kind(l)}「${short(l.n)}」月${l.m}万円${l.inc ? "（毎月+" + l.inc + "）" : ""}${l.tax ? "（税抜・課税）" : ""} ${l.from}〜${l.to}`;
         const msgs = [];
         lines.forEach((l) => {
           const o = oById[l.id];
           if (!o) msgs.push("追加：" + desc(l));
-          else if (["k", "n", "m", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
+          else if (["k", "n", "m", "inc", "from", "to", "note", "tax"].some((f) => String(o[f] ?? "") !== String(l[f] ?? ""))) msgs.push("変更：" + desc(o) + " → " + desc(l));
         });
         old.forEach((o) => { if (!nById[o.id]) msgs.push("削除：" + desc(o)); });
         if (!msgs.length) return json({ ok: true, unchanged: true });

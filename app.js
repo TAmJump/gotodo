@@ -120,20 +120,21 @@
   function ymS(n){return Math.floor(n/12)+'-'+String(n%12+1).padStart(2,'0');}
   function MONTHS(){var R=BRANGES[bsel],r=[];for(var i=ymN(R[0]);i<=ymN(R[1]);i++)r.push(ymS(i));return r;}
   function inM(l,m){var x=ymN(m);return x>=ymN(l.from)&&x<=ymN(l.to);}
-  function gross(l){return (+l.m||0)*(l.tax?1.1:1);}
-  function lineYear(l){return MONTHS().reduce(function(s,m){return s+(inM(l,m)?gross(l):0);},0);}
-  function ctax(b,m){var v=b.lines.reduce(function(s,l){return s+(l.tax&&inM(l,m)?(l.k==='rev'?1:-1)*(+l.m||0)*0.1:0);},0);return Math.max(0,v);}
+  function netM(l,m){return (+l.m||0)+(+l.inc||0)*Math.max(0,ymN(m)-ymN(l.from));}
+  function gross(l,m){return netM(l,m)*(l.tax?1.1:1);}
+  function lineYear(l){return MONTHS().reduce(function(s,m){return s+(inM(l,m)?gross(l,m):0);},0);}
+  function ctax(b,m){var v=b.lines.reduce(function(s,l){return s+(l.tax&&inM(l,m)?(l.k==='rev'?1:-1)*netM(l,m)*0.1:0);},0);return Math.max(0,v);}
   function ymJ(s){var a=String(s).split('-');return a[0]+'年'+(+a[1])+'月';}
   function per(l){return (l.from===BP0&&l.to===BP1)?'全期間':(l.from===l.to?ymJ(l.from)+'のみ':ymJ(l.from)+'〜'+ymJ(l.to));}
   function budTotals(b){var r=0,e=0;b.lines.forEach(function(l){if(l.k==='rev')r+=lineYear(l);else e+=lineYear(l);});MONTHS().forEach(function(m){e+=ctax(b,m);});return {r:r,e:e,p:r-e};}
-  function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?gross(l):0);},0)+(k==='exp'?ctax(b,m):0);}
+  function budMonth(b,k,m){return b.lines.reduce(function(s,l){return s+(l.k===k&&inM(l,m)?gross(l,m):0);},0)+(k==='exp'?ctax(b,m):0);}
   function budNums(t){return '<div class="bnums"><div><span>期間売上</span><b>'+yen(t.r)+'</b></div><div><span>期間支出</span><b>'+yen(t.e)+'</b></div><div class="'+(t.p<0?'neg':'pos')+'"><span>損益</span><b>'+yen(t.p)+'</b></div><div><span>月平均売上</span><b>'+yen(t.r/MONTHS().length)+'</b></div></div>';}
   function budTable(b){
     var ms=MONTHS();
     var head='<tr><th class="bn">事業</th>'+ms.map(function(m){var a=m.split('-');return '<th class="n">'+(a[1]==='01'||m===BP0?a[0].slice(2)+'/':'')+(+a[1])+'月</th>';}).join('')+'<th class="n">期間計</th><th></th></tr>';
     function rows(k){return b.lines.filter(function(l){return l.k===k;}).map(function(l){
-      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>月'+num1(gross(l))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
-        +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(gross(l)):'–')+'</td>';}).join('')
+      return '<tr><td class="bn"><b>'+esc(l.n)+'</b><small>月'+num1(gross(l,l.from))+'万円'+(l.tax?'（税抜'+num1(+l.m||0)+'）':'')+(+l.inc?'から毎月'+num1(+l.inc)+'万円ずつ増加':'')+'／'+per(l)+(l.note?'／'+esc(l.note):'')+'</small></td>'
+        +ms.map(function(m){return '<td class="n'+(inM(l,m)?'':' off')+'">'+(inM(l,m)?num1(gross(l,m)):'–')+'</td>';}).join('')
         +'<td class="n"><b>'+num1(lineYear(l))+'</b></td>'
         +'<td class="bact">'+(canWrite?'<button type="button" class="bbtn" data-bed="'+esc(b.id)+'" data-line="'+esc(l.id)+'">修正</button><button type="button" class="bbtn" data-bcp="'+esc(b.id)+'" data-line="'+esc(l.id)+'">複製</button>':'')+'</td></tr>';}).join('');}
     function sum(lbl,f,cls){return '<tr class="bsum '+(cls||'')+'"><td class="bn">'+lbl+'</td>'+ms.map(function(m){var v=f(m);return '<td class="n'+(v<0?' neg':'')+'">'+(v<0?'▲':'')+num1(Math.abs(v))+'</td>';}).join('')+'<td class="n">'+(function(){var t=ms.reduce(function(s,m){return s+f(m);},0);return (t<0?'▲':'')+num1(Math.abs(t));})()+'</td><td></td></tr>';}
@@ -169,6 +170,7 @@
       +(mode==='edit'?'':'<label>既存の事業からコピー<select data-bf="copy">'+copyOpts+'</select></label>')
       +'<div class="bnote-r"><label>区分<select data-bf="k"><option value="rev">売上</option><option value="exp">支出</option></select></label>'
       +'<label>月額（万円）<input data-bf="m" type="number" step="0.1" inputmode="decimal"></label></div>'
+      +'<label>毎月の増加額（万円・任意）<input data-bf="inc" type="number" step="0.1" inputmode="decimal" placeholder="例：契約者が毎月2人増える → 1.1"></label>'
       +'<label class="bchk"><input data-bf="tax" type="checkbox"> 消費税10%がかかる（月額は税抜で入力）</label><p class="bprev"></p>'
       +'<label>事業名・相手先<input data-bf="n" type="text" maxlength="200" placeholder="例：医療法人〇〇 訪看コンサル"></label>'
       +'<div class="bnote-r"><label>開始月<input data-bf="from" type="month" min="'+BP0+'" max="'+BP1+'"></label><label>終了月<input data-bf="to" type="month" min="'+BP0+'" max="'+BP1+'"></label></div>'
@@ -176,7 +178,7 @@
       +'<p class="bnote-err" aria-live="polite"></p>'
       +'<div class="bnote-b">'+(mode==='edit'?'<button type="button" class="btn danger" data-bdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-bsave>保存</button></span></div>';
     function prev(){var m=+el.querySelector('[data-bf=m]').value||0,t=el.querySelector('[data-bf=tax]').checked;el.querySelector('.bprev').textContent=t?'税込 月'+num1(m*1.1)+'万円で表示されます':'入力した金額のまま表示されます';}
-    function fill(x){['k','n','m','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null?'':x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
+    function fill(x){['k','n','m','inc','from','to','note'].forEach(function(f){el.querySelector('[data-bf='+f+']').value=x[f]==null||x[f]===0?(f==='m'&&x[f]===0?0:''):x[f];});el.querySelector('[data-bf=tax]').checked=!!x.tax;prev();}
     fill(l);
     if(mode==='copy')el.querySelector('[data-bf=n]').value=l.n+'（コピー）';
     el.addEventListener('input',function(e){if(e.target.dataset.bf==='m'||e.target.dataset.bf==='tax')prev();});
@@ -199,7 +201,7 @@
       var lines=b.lines.map(function(x){return JSON.parse(JSON.stringify(x));}), err=el.querySelector('.bnote-err');
       if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent='本当に削除';return;}lines=lines.filter(function(x){return x.id!==note.lid;});}
       else{
-        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;
+        var v={};['k','n','m','from','to','note'].forEach(function(f){v[f]=el.querySelector('[data-bf='+f+']').value.trim();});v.tax=el.querySelector('[data-bf=tax]').checked;v.inc=Math.round((+el.querySelector('[data-bf=inc]').value||0)*10)/10;
         if(!v.n){err.textContent='事業名を入力してください';el.querySelector('[data-bf=n]').focus();return;}
         if(v.m===''||isNaN(+v.m)){err.textContent='月額を数字で入力してください';el.querySelector('[data-bf=m]').focus();return;}
         if(!v.from||!v.to||v.from>v.to){err.textContent='開始月と終了月を確認してください';return;}
