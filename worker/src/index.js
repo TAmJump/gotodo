@@ -297,7 +297,7 @@ export default {
         let count = 0;
         const clean = (arr, depth) => (Array.isArray(arr) && depth < 6 ? arr : []).slice(0, 50).map((n) => {
           if (++count > 300) return null;
-          return { id: String(n.id || newId("gn")).slice(0, 40), t: String(n.t || "").slice(0, 200), co: String(n.co || "").slice(0, 40), line: String(n.line || "").slice(0, 40), g: String(n.g || "").slice(0, 40), goal: String(n.goal || "").slice(0, 300), note: String(n.note || "").slice(0, 1500), due: /^\d{4}-\d{2}$/.test(String(n.due || "")) ? String(n.due) : "", done: !!n.done, kids: clean(n.kids, depth + 1) };
+          return { id: String(n.id || newId("gn")).slice(0, 40), t: String(n.t || "").slice(0, 200), co: String(n.co || "").slice(0, 40), line: String(n.line || "").slice(0, 40), g: String(n.g || "").slice(0, 40), goal: String(n.goal || "").slice(0, 300), s: String(n.s || "").slice(0, 60), note: String(n.note || "").slice(0, 1500), due: /^\d{4}-\d{2}$/.test(String(n.due || "")) ? String(n.due) : "", done: !!n.done, kids: clean(n.kids, depth + 1) };
         }).filter((n) => n && n.t);
         const row = {
           role: String(body.role || "").slice(0, 40),

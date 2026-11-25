@@ -319,16 +319,41 @@
       +'<div class="gplanh"><h3>そのためにやっていくこと</h3>'+(cw?'<button type="button" class="btn '+(gEdit?'primary':'ghost')+' gedit" data-gedit>'+(gEdit?'編集を終える':'追加・修正・削除する')+'</button>':'')+'<div class="bsel" role="group" aria-label="数字の期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2].replace(/（.*$/,'')+'</button>';}).join('')+'</div></div>';
     if(!cur.tree.length&&!gEdit)h+='<p class="gempty">まだ入力されていません。'+(cw?'「編集する」から追加できます。':'')+'</p>';
     else{
-      h+='<ol class="gsteps">'+cur.tree.map(function(n,i){var sp=splitPeriod(n.t),L=gnLink(n);
-        return '<li class="gstep"><div class="gside"><div class="gsh"><span class="gno">STEP '+(i+1)+'</span>'+(sp.p?'<span class="gper">'+esc(sp.p)+'</span>':'')+dueChip(n)+'</div>'
-          +'<h4>'+esc(sp.t)+'</h4>'+(gEdit?gActs(n.id,true):'')+gGoal(n)+(L?'<div class="gms">'+L+'</div>':'')+(n.note?'<p class="gnote2">'+esc(n.note)+'</p>':'')+'</div>'
-          +'<div class="gcards">'+(n.kids||[]).map(function(c){var Lc=gnLink(c);
-            return '<div class="gcard'+(c.done?' done':'')+'"><div class="gch"><b>'+esc(c.t)+'</b>'+dueChip(c)+'</div>'+(gEdit?gActs(c.id,false):'')+(Lc?'<div class="gms">'+Lc+'</div>':'')+gGoal(c)+(c.note?'<p class="gnote2">'+esc(c.note)+'</p>':'')+gnActs(c.kids)+'</div>';}).join('')
-          +(gEdit?'<button type="button" class="gaddk gcard" data-gnadd="'+esc(n.id)+'">＋ 会社・取り組みを追加</button>':'')+'</div></li>';}).join('')
+      h+='<ol class="gsteps">'+cur.tree.map(function(n,i){var sp=splitPeriod(n.t);
+        return '<li class="gstep"><button type="button" class="gside" data-ginfo="'+esc(n.id)+'"><span class="gsh"><span class="gno">STEP '+(i+1)+'</span>'+(sp.p?'<span class="gper">'+esc(sp.p)+'</span>':'')+'</span>'
+          +'<span class="gst">'+esc(sp.t)+'</span>'+(n.s?'<span class="gone">'+esc(n.s)+'</span>':'')+'<span class="gmore">詳しく</span></button>'
+          +'<div class="gtiles">'+(n.kids||[]).map(function(c){var nx=nextDue(c);
+            return '<button type="button" class="gtile'+(c.done?' done':'')+'" data-ginfo="'+esc(c.id)+'"><span class="gtn">'+esc(c.t)+'</span>'+(c.s?'<span class="gone">'+esc(c.s)+'</span>':'')+(nx?'<span class="gnext">'+nx+'</span>':'')+'</button>';}).join('')
+          +(gEdit?'<button type="button" class="gaddk" data-gnadd="'+esc(n.id)+'">＋ 追加</button>':'')+'</div></li>';}).join('')
         +(gEdit?'<li class="gstep gnew"><button type="button" class="gaddk" data-gnadd="">＋ STEPを追加</button></li>':'')+'</ol>';
     }
-    h+='<p class="gfoot">数字は予実の'+esc(BRANGES[bsel][2])+'の予算（万円・税込）。「TODO」は関連タスクの完了数。</p></section>';
+    h+='<p class="gfoot">四角を押すと詳しい内容が出ます。数字は予実の'+esc(BRANGES[bsel][2])+'の予算（万円・税込）。</p></section>';
     app.innerHTML=h;
+  }
+  function flat(n,out){(n.kids||[]).forEach(function(k){if(k.due)out.push(k);flat(k,out);});return out;}
+  function nextDue(n){var a=flat(n,[]).filter(function(k){return !k.done;}).sort(function(x,y){return x.due<y.due?-1:1;})[0];if(!a)return '';var late=a.due<NOWYM;return '<em class="'+(late?'late':'')+'">'+(late?'期限切れ':'次')+' '+ymJ(a.due)+'</em>'+esc(a.t);}
+  function openGInfo(id,anchor){
+    closeNote();var f=gnFind(goalOf(gsel).tree||[],id,null);if(!f)return;var n=f.n,sp=splitPeriod(n.t),L=gnLink(n),cw=canWrite&&gEdit;
+    var el=document.createElement('div');el.className='bnote ginfo';el.setAttribute('role','dialog');
+    el.innerHTML='<div class="bnote-h"><b>'+esc(sp.t)+'</b>'+(sp.p?'<span>'+esc(sp.p)+'</span>':'')+'<button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
+      +'<div class="ginb">'+(n.s?'<p class="gone">'+esc(n.s)+'</p>':'')+gGoal(n)+(n.due?'<p class="gi"><em>期限</em>'+dueChip(n)+'</p>':'')+(L?'<div class="gms">'+L+'</div>':'')
+      +(n.note?'<p class="gnote2">'+esc(n.note)+'</p>':'')
+      +((n.kids||[]).length?'<h5>やること</h5>'+gnActs(n.kids):'')+'</div>'
+      +(cw?'<div class="bnote-b">'+gActs(n.id,false)+'</div>':'');
+    document.body.appendChild(el);
+    var w=Math.min(440,window.innerWidth-24),r=anchor.getBoundingClientRect();el.style.width=w+'px';
+    el.style.left=Math.min(Math.max(12,r.left),window.innerWidth-w-12)+'px';
+    var top=r.bottom+6;if(top+el.offsetHeight>window.innerHeight-12)top=Math.max(12,window.innerHeight-el.offsetHeight-12);el.style.top=top+'px';
+    note={el:el};el.querySelector('.bx').focus();
+    el.addEventListener('keydown',function(e){if(e.key==='Escape')closeNote();});
+    el.addEventListener('click',function(e){if(e.target.closest('[data-bclose]')){closeNote();return;}var b=e.target.closest('[data-gn],[data-gnadd],[data-gndel]');if(!b)return;e.stopPropagation();gAction(b);});
+  }
+  function gAction(b){
+    if(b.dataset.gndel!=null&&b.hasAttribute('data-gndel')){
+      if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='もう一度押すと削除';return;}
+      var tr=JSON.parse(JSON.stringify(goalOf(gsel).tree||[])),fd=gnFind(tr,b.dataset.gndel,null);if(fd){fd.arr.splice(fd.i,1);closeNote();saveGoal(gsel,{tree:tr}).then(function(){setStatus('削除しました');return load();}).catch(fail);}return;}
+    if(b.hasAttribute('data-gnadd')){openNode(b.dataset.gnadd,null,b);return;}
+    if(b.hasAttribute('data-gn')){openNode(null,b.dataset.gn,b);}
   }
   function placeNote(el,anchor){
     document.body.appendChild(el);
@@ -369,20 +394,21 @@
     var el=document.createElement('div'); el.className='bnote'; el.setAttribute('role','dialog');
     el.innerHTML='<div class="bnote-h"><b>'+(nid?'枝を修正':'枝を追加')+'</b><span>'+esc(parent?'「'+parent.n.t+'」の下':gsel+'の理想の下')+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
       +'<label>やること・目標<textarea data-gf="t" rows="2" maxlength="200" placeholder="例：病院コンサルを3件に増やす"></textarea></label>'
+      +'<label>表に出す一言（短く）<input data-gf="s" type="text" maxlength="60" placeholder="例：コンサル3件で月200万円へ"></label>'
       +'<label>ゴール（数字・状態で具体的に）<textarea data-gf="goal" rows="2" maxlength="300" placeholder="例：2027年7月までに2件目の契約（月40万円）"></textarea></label>'
       +'<div class="bnote-r"><label>期限<input data-gf="due" type="month"></label><label class="bchk" style="margin-top:22px"><input data-gf="done" type="checkbox"> 完了</label></div>'
       +'<label>説明・理由（任意）<textarea data-gf="note" rows="3" maxlength="1500"></textarea></label>'
       +'<label>予実とつなぐ（数字を自動で表示）<select data-gf="co">'+coOpts+'</select></label>'
       +'<label>TODOとつなぐ（進み具合を表示）<select data-gf="g">'+gOpts+'</select></label>'
       +'<p class="bnote-err" aria-live="polite"></p><div class="bnote-b">'+(nid?'<button type="button" class="btn danger" data-gdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-gsave>保存</button></span></div>';
-    el.querySelector('[data-gf=t]').value=n.t||''; el.querySelector('[data-gf=co]').value=n.co?n.co+'|'+(n.line||''):''; el.querySelector('[data-gf=g]').value=n.g||'';el.querySelector('[data-gf=goal]').value=n.goal||'';el.querySelector('[data-gf=due]').value=n.due||'';el.querySelector('[data-gf=note]').value=n.note||'';el.querySelector('[data-gf=done]').checked=!!n.done;
+    el.querySelector('[data-gf=t]').value=n.t||''; el.querySelector('[data-gf=co]').value=n.co?n.co+'|'+(n.line||''):''; el.querySelector('[data-gf=g]').value=n.g||'';el.querySelector('[data-gf=goal]').value=n.goal||'';el.querySelector('[data-gf=s]').value=n.s||'';el.querySelector('[data-gf=due]').value=n.due||'';el.querySelector('[data-gf=note]').value=n.note||'';el.querySelector('[data-gf=done]').checked=!!n.done;
     placeNote(el,anchor); note={el:el}; el.querySelector('[data-gf=t]').focus();
     el.addEventListener('click',async function(e){
       if(e.target.closest('[data-bclose]')){closeNote();return;}
       var del=e.target.closest('[data-gdel]'), save=e.target.closest('[data-gsave]'); if(!del&&!save)return;
       if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent=(f.n.kids&&f.n.kids.length?'下の枝ごと削除':'本当に削除');return;}f.arr.splice(f.i,1);}
       else{var t=el.querySelector('[data-gf=t]').value.trim();if(!t){el.querySelector('.bnote-err').textContent='やること・目標を入力してください';return;}
-        var cv=el.querySelector('[data-gf=co]').value.split('|'),v={t:t,co:cv[0]||'',line:cv[1]||'',g:el.querySelector('[data-gf=g]').value,goal:el.querySelector('[data-gf=goal]').value.trim(),due:el.querySelector('[data-gf=due]').value,note:el.querySelector('[data-gf=note]').value.trim(),done:el.querySelector('[data-gf=done]').checked};
+        var cv=el.querySelector('[data-gf=co]').value.split('|'),v={t:t,co:cv[0]||'',line:cv[1]||'',g:el.querySelector('[data-gf=g]').value,goal:el.querySelector('[data-gf=goal]').value.trim(),s:el.querySelector('[data-gf=s]').value.trim(),due:el.querySelector('[data-gf=due]').value,note:el.querySelector('[data-gf=note]').value.trim(),done:el.querySelector('[data-gf=done]').checked};
         if(f)Object.assign(f.n,v);else{v.id='gn'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);v.kids=[];if(parent){parent.n.kids=parent.n.kids||[];parent.n.kids.push(v);}else tree.push(v);}}
       try{await saveGoal(gsel,{tree:tree});closeNote();setStatus('目標を保存しました');await load();}catch(x){fail(x);}
     });
@@ -491,6 +517,7 @@
     var gs=e.target.closest('[data-gsel]');if(gs){gsel=gs.dataset.gsel;try{localStorage.setItem('todo-gsel',gsel);}catch(x){}render();return;}
     if(e.target.closest('[data-gedit]')){gEdit=!gEdit;render();return;}
     var gpz=e.target.closest('[data-gperson]');if(gpz&&canWrite){e.preventDefault();openPerson(gpz.dataset.gperson,gpz);return;}
+    var gi=e.target.closest('[data-ginfo]');if(gi){e.preventDefault();openGInfo(gi.dataset.ginfo,gi);return;}
     var gdl=e.target.closest('[data-gndel]');if(gdl&&canWrite){e.preventDefault();
       if(gdl.dataset.armed!=='1'){document.querySelectorAll('[data-gndel][data-armed]').forEach(function(x){x.dataset.armed='';x.textContent='削除';});gdl.dataset.armed='1';gdl.textContent='もう一度押すと削除';return;}
       var tr=JSON.parse(JSON.stringify(goalOf(gsel).tree||[])),fd=gnFind(tr,gdl.dataset.gndel,null);if(fd){fd.arr.splice(fd.i,1);saveGoal(gsel,{tree:tr}).then(function(){setStatus('削除しました');return load();}).catch(fail);}return;}
