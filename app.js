@@ -280,25 +280,30 @@
   function coShort(s){return String(s||'').replace(/^(株式会社|NPO法人|特定非営利活動法人)\s*/,'');}
   function gnLink(n){
     var out='';
-    if(n.co){var b=bud(n.co);if(b){
+    if(n.co==='*'){var t={r:0,e:0,p:0};budgets.forEach(function(b){var x=budTotals(b);t.r+=x.r;t.e+=x.e;t.p+=x.p;});
+      out+='<span class="gm"><span class="gco">グループ全体</span>売上 <b>'+yen(t.r)+'</b>万円<i>利益 <b class="'+(t.p<0?'neg':'pos')+'">'+yen(t.p)+'</b>万円</i></span>';}
+    else if(n.co){var b=bud(n.co);if(b){
       var who='<span class="gco">'+esc(coShort(b.name))+'</span>';
       if(n.line){var l=b.lines.filter(function(x){return x.id===n.line;})[0];
         if(l)out+='<span class="gm">'+who+(l.k==='exp'?'支出 ':'売上 ')+'<b>'+yen(lineYear(l))+'</b>万円</span>';}
-      else{var t=budTotals(b),y=yojitsu(b);
-        out+='<span class="gm">'+who+'売上 <b>'+yen(t.r)+'</b>万円<i>損益 <b class="'+(t.p<0?'neg':'pos')+'">'+yen(t.p)+'</b></i>'+(y?'<i class="ga">実績 '+yen(y.ar)+'（'+y.n+'か月）</i>':'')+'</span>';}
+      else{var t2=budTotals(b),y=yojitsu(b);
+        out+='<span class="gm">'+who+'売上 <b>'+yen(t2.r)+'</b>万円<i>利益 <b class="'+(t2.p<0?'neg':'pos')+'">'+yen(t2.p)+'</b>万円</i>'+(y?'<i class="ga">実績 '+yen(y.ar)+'（'+y.n+'か月）</i>':'')+'</span>';}
     }}
     if(n.g&&groups[n.g]){var all=Object.keys(tasks).filter(function(k){return tasks[k].g===n.g;}),dn=all.filter(function(k){return tasks[k].done;}).length;
-      out+='<span class="gm gt" title="'+esc(groups[n.g].name)+'">準備 <span class="gbarm"><i style="width:'+(all.length?dn/all.length*100:0)+'%"></i></span><b>'+dn+'/'+all.length+'</b></span>';}
+      out+='<span class="gm gt" title="'+esc(groups[n.g].name)+'">TODO <span class="gbarm"><i style="width:'+(all.length?dn/all.length*100:0)+'%"></i></span><b>'+dn+'/'+all.length+'</b></span>';}
     return out;
   }
   function splitPeriod(t){var m=String(t).match(/^(.*?)[（(]([^（()）]*\d{4}[^（()）]*)[）)]\s*$/);return m?{t:m[1],p:m[2]}:{t:t,p:''};}
-  function gnSub(arr){
+  var NOWYM=ymd(today).slice(0,7);
+  function dueChip(n){if(!n.due)return '';var late=!n.done&&n.due<NOWYM;return '<span class="gdue'+(n.done?' ok':late?' late':'')+'">'+(n.done?'完了 ':late?'期限切れ ':'')+ymJ(n.due)+'</span>';}
+  function gGoal(n){return n.goal?'<p class="ggoal"><em>ゴール</em>'+esc(n.goal)+'</p>':'';}
+  function gnActs(arr){
     if(!arr||!arr.length)return '';
-    return '<ul class="gsub">'+arr.map(function(n){var L=gnLink(n);
-      return '<li><span class="gtt">'+esc(n.t)+'</span>'+(gEdit?gActs(n.id,false):'')
-        +(L?'<div class="gms">'+L+'</div>':'')+gnSub(n.kids)+'</li>';}).join('')+'</ul>';
+    return '<ul class="gact">'+arr.map(function(n){var L=gnLink(n);
+      return '<li class="'+(n.done?'done':'')+'"><div class="gal">'+dueChip(n)+'<span class="gtt">'+esc(n.t)+'</span>'+(gEdit?gActs(n.id,false):'')+'</div>'
+        +(n.goal?'<div class="gag">'+esc(n.goal)+'</div>':'')+(L?'<div class="gms">'+L+'</div>':'')+gnActs(n.kids)+'</li>';}).join('')+'</ul>';
   }
-  function gActs(id,step){return '<span class="gacts"><button type="button" data-gn="'+esc(id)+'">修正</button><button type="button" data-gnadd="'+esc(id)+'">＋ '+(step?'やることを追加':'下に追加')+'</button><button type="button" class="del" data-gndel="'+esc(id)+'">削除</button></span>';}
+  function gActs(id,step){return '<span class="gacts"><button type="button" data-gn="'+esc(id)+'">修正</button><button type="button" data-gnadd="'+esc(id)+'">＋ '+(step?'追加':'下に追加')+'</button><button type="button" class="del" data-gndel="'+esc(id)+'">削除</button></span>';}
   function incomeTxt(g){return g.income!=null&&g.income!==''?yen(+g.income)+'万円'+(g.year?'（'+esc(g.year)+'年）':''):'未記入';}
   function rGoal(){
     var G=goalOf('_group'), cur=goalOf(gsel), cw=canWrite;
@@ -315,13 +320,14 @@
     if(!cur.tree.length&&!gEdit)h+='<p class="gempty">まだ入力されていません。'+(cw?'「編集する」から追加できます。':'')+'</p>';
     else{
       h+='<ol class="gsteps">'+cur.tree.map(function(n,i){var sp=splitPeriod(n.t),L=gnLink(n);
-        return '<li class="gstep"><div class="gsh"><span class="gno">STEP '+(i+1)+'</span>'+(sp.p?'<span class="gper">'+esc(sp.p)+'</span>':'')+'</div>'
-          +'<h4>'+esc(sp.t)+'</h4>'+(gEdit?gActs(n.id,true):'')
-          +(L?'<div class="gms">'+L+'</div>':'')+gnSub(n.kids)
-          +'</li>';}).join('')
+        return '<li class="gstep"><div class="gside"><div class="gsh"><span class="gno">STEP '+(i+1)+'</span>'+(sp.p?'<span class="gper">'+esc(sp.p)+'</span>':'')+dueChip(n)+'</div>'
+          +'<h4>'+esc(sp.t)+'</h4>'+(gEdit?gActs(n.id,true):'')+gGoal(n)+(L?'<div class="gms">'+L+'</div>':'')+(n.note?'<p class="gnote2">'+esc(n.note)+'</p>':'')+'</div>'
+          +'<div class="gcards">'+(n.kids||[]).map(function(c){var Lc=gnLink(c);
+            return '<div class="gcard'+(c.done?' done':'')+'"><div class="gch"><b>'+esc(c.t)+'</b>'+dueChip(c)+'</div>'+(gEdit?gActs(c.id,false):'')+(Lc?'<div class="gms">'+Lc+'</div>':'')+gGoal(c)+(c.note?'<p class="gnote2">'+esc(c.note)+'</p>':'')+gnActs(c.kids)+'</div>';}).join('')
+          +(gEdit?'<button type="button" class="gaddk gcard" data-gnadd="'+esc(n.id)+'">＋ 会社・取り組みを追加</button>':'')+'</div></li>';}).join('')
         +(gEdit?'<li class="gstep gnew"><button type="button" class="gaddk" data-gnadd="">＋ STEPを追加</button></li>':'')+'</ol>';
     }
-    h+='<p class="gfoot">数字は予実の'+esc(BRANGES[bsel][2])+'（万円・税込）。「準備」はTODOの完了数。</p></section>';
+    h+='<p class="gfoot">数字は予実の'+esc(BRANGES[bsel][2])+'の予算（万円・税込）。「TODO」は関連タスクの完了数。</p></section>';
     app.innerHTML=h;
   }
   function placeNote(el,anchor){
@@ -357,23 +363,26 @@
   function openNode(pid,nid,anchor){
     closeNote();
     var g=goalOf(gsel), tree=JSON.parse(JSON.stringify(g.tree||[])), f=nid?gnFind(tree,nid,null):null, n=f?f.n:{t:'',co:'',line:'',g:''};
-    var coOpts='<option value="">つなげない</option>'+budgets.map(function(b){return '<optgroup label="'+esc(b.name)+'"><option value="'+esc(b.id)+'|">'+esc(b.name)+'（会社全体）</option>'+b.lines.map(function(l){return '<option value="'+esc(b.id+'|'+l.id)+'">'+(l.k==='exp'?'［支出］':'［売上］')+esc(l.n)+'</option>';}).join('')+'</optgroup>';}).join('');
+    var coOpts='<option value="">つなげない</option><option value="*|">グループ全体</option>'+budgets.map(function(b){return '<optgroup label="'+esc(b.name)+'"><option value="'+esc(b.id)+'|">'+esc(b.name)+'（会社全体）</option>'+b.lines.map(function(l){return '<option value="'+esc(b.id+'|'+l.id)+'">'+(l.k==='exp'?'［支出］':'［売上］')+esc(l.n)+'</option>';}).join('')+'</optgroup>';}).join('');
     var gOpts='<option value="">つなげない</option>'+sortedGroups().map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join('');
     var parent=pid?gnFind(tree,pid,null):null;
     var el=document.createElement('div'); el.className='bnote'; el.setAttribute('role','dialog');
     el.innerHTML='<div class="bnote-h"><b>'+(nid?'枝を修正':'枝を追加')+'</b><span>'+esc(parent?'「'+parent.n.t+'」の下':gsel+'の理想の下')+'</span><button type="button" class="bx" data-bclose aria-label="閉じる">×</button></div>'
       +'<label>やること・目標<textarea data-gf="t" rows="2" maxlength="200" placeholder="例：病院コンサルを3件に増やす"></textarea></label>'
+      +'<label>ゴール（数字・状態で具体的に）<textarea data-gf="goal" rows="2" maxlength="300" placeholder="例：2027年7月までに2件目の契約（月40万円）"></textarea></label>'
+      +'<div class="bnote-r"><label>期限<input data-gf="due" type="month"></label><label class="bchk" style="margin-top:22px"><input data-gf="done" type="checkbox"> 完了</label></div>'
+      +'<label>説明・理由（任意）<textarea data-gf="note" rows="3" maxlength="1500"></textarea></label>'
       +'<label>予実とつなぐ（数字を自動で表示）<select data-gf="co">'+coOpts+'</select></label>'
       +'<label>TODOとつなぐ（進み具合を表示）<select data-gf="g">'+gOpts+'</select></label>'
       +'<p class="bnote-err" aria-live="polite"></p><div class="bnote-b">'+(nid?'<button type="button" class="btn danger" data-gdel>削除</button>':'<span></span>')+'<span><button type="button" class="btn" data-bclose>やめる</button> <button type="button" class="btn primary" data-gsave>保存</button></span></div>';
-    el.querySelector('[data-gf=t]').value=n.t||''; el.querySelector('[data-gf=co]').value=n.co?n.co+'|'+(n.line||''):''; el.querySelector('[data-gf=g]').value=n.g||'';
+    el.querySelector('[data-gf=t]').value=n.t||''; el.querySelector('[data-gf=co]').value=n.co?n.co+'|'+(n.line||''):''; el.querySelector('[data-gf=g]').value=n.g||'';el.querySelector('[data-gf=goal]').value=n.goal||'';el.querySelector('[data-gf=due]').value=n.due||'';el.querySelector('[data-gf=note]').value=n.note||'';el.querySelector('[data-gf=done]').checked=!!n.done;
     placeNote(el,anchor); note={el:el}; el.querySelector('[data-gf=t]').focus();
     el.addEventListener('click',async function(e){
       if(e.target.closest('[data-bclose]')){closeNote();return;}
       var del=e.target.closest('[data-gdel]'), save=e.target.closest('[data-gsave]'); if(!del&&!save)return;
       if(del){if(del.dataset.armed!=='1'){del.dataset.armed='1';del.textContent=(f.n.kids&&f.n.kids.length?'下の枝ごと削除':'本当に削除');return;}f.arr.splice(f.i,1);}
       else{var t=el.querySelector('[data-gf=t]').value.trim();if(!t){el.querySelector('.bnote-err').textContent='やること・目標を入力してください';return;}
-        var cv=el.querySelector('[data-gf=co]').value.split('|'),v={t:t,co:cv[0]||'',line:cv[1]||'',g:el.querySelector('[data-gf=g]').value};
+        var cv=el.querySelector('[data-gf=co]').value.split('|'),v={t:t,co:cv[0]||'',line:cv[1]||'',g:el.querySelector('[data-gf=g]').value,goal:el.querySelector('[data-gf=goal]').value.trim(),due:el.querySelector('[data-gf=due]').value,note:el.querySelector('[data-gf=note]').value.trim(),done:el.querySelector('[data-gf=done]').checked};
         if(f)Object.assign(f.n,v);else{v.id='gn'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);v.kids=[];if(parent){parent.n.kids=parent.n.kids||[];parent.n.kids.push(v);}else tree.push(v);}}
       try{await saveGoal(gsel,{tree:tree});closeNote();setStatus('目標を保存しました');await load();}catch(x){fail(x);}
     });
