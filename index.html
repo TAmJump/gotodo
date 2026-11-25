@@ -289,14 +289,14 @@ button.gvtxt{cursor:pointer;text-decoration:underline dotted var(--line)}
 .gplanh h3{margin:0;font-size:16px}
 .gplanh .bsel{margin:0}
 .gempty{color:var(--muted);font-size:13px;margin:10px 0 0}
-ol.gsteps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px 28px;counter-reset:s}
+ol.gsteps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 28px;counter-reset:s}
 .gstep{position:relative;border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:10px;background:#fff;padding:12px 16px 14px}
 .gstep:nth-child(2){border-top-color:#00A040}
 .gstep:nth-child(3){border-top-color:#E6007E}
 .gstep:nth-child(4){border-top-color:#FF7A00}
 @media (min-width:900px){.gstep:not(:last-child)::after{content:"→";position:absolute;right:-22px;top:42%;font-size:18px;color:var(--muted)}}
 .gstep.gnew{border-style:dashed;border-top-width:1px;display:flex;align-items:center;justify-content:center}
-.gstep.gnew::after{display:none}
+.gstep.gnew::after,.gstep:has(+ .gnew)::after{display:none}
 .gsh{display:flex;align-items:center;gap:8px}
 .gno{font:700 11.5px var(--font-mono);letter-spacing:.08em;color:var(--muted)}
 .gper{font-size:12px;font-weight:700;border:1px solid var(--fg);border-radius:99px;padding:0 9px;background:var(--gold)}
@@ -321,6 +321,15 @@ ul.gsub ul.gsub li::before{background:none;border:1px solid var(--muted);width:5
 .gtxt.gst{font-size:16px;font-weight:700;margin:6px 0 2px}
 .gplus{width:20px;height:20px;margin-left:6px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font:600 12px/18px var(--font-mono);cursor:pointer;padding:0;vertical-align:1px}
 .gaddk{margin-top:10px;font:inherit;font-size:12.5px;border:1px dashed var(--accent);border-radius:6px;background:#fff;color:var(--accent);padding:4px 10px;cursor:pointer}
+.gacts{display:inline-flex;flex-wrap:wrap;gap:4px;margin-left:8px;vertical-align:1px}
+.gacts button{font:inherit;font-size:11.5px;line-height:1.4;border:1px solid var(--accent);border-radius:5px;background:#fff;color:var(--accent);padding:1px 7px;cursor:pointer}
+.gacts button:hover{background:var(--accent);color:#fff}
+.gacts button.del{border-color:var(--late);color:var(--late)}
+.gacts button.del:hover{background:var(--late);color:#fff}
+.gacts button.del[data-armed="1"]{background:var(--late);color:#fff}
+.gstep h4+.gacts{margin:0 0 4px}
+.gplanh h3{margin-right:auto}
+.gplanh .gedit{margin-left:0}
 .gfoot{font-size:11.5px;color:var(--muted);margin:12px 0 0}
 </style>
 </head>

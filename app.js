@@ -295,29 +295,30 @@
   function gnSub(arr){
     if(!arr||!arr.length)return '';
     return '<ul class="gsub">'+arr.map(function(n){var L=gnLink(n);
-      return '<li>'+(gEdit?'<button type="button" class="gtxt" data-gn="'+esc(n.id)+'">'+esc(n.t)+'</button><button type="button" class="gplus" data-gnadd="'+esc(n.id)+'" aria-label="この下に追加">＋</button>':'<span class="gtt">'+esc(n.t)+'</span>')
+      return '<li><span class="gtt">'+esc(n.t)+'</span>'+(gEdit?gActs(n.id,false):'')
         +(L?'<div class="gms">'+L+'</div>':'')+gnSub(n.kids)+'</li>';}).join('')+'</ul>';
   }
+  function gActs(id,step){return '<span class="gacts"><button type="button" data-gn="'+esc(id)+'">修正</button><button type="button" data-gnadd="'+esc(id)+'">＋ '+(step?'やることを追加':'下に追加')+'</button><button type="button" class="del" data-gndel="'+esc(id)+'">削除</button></span>';}
   function incomeTxt(g){return g.income!=null&&g.income!==''?yen(+g.income)+'万円'+(g.year?'（'+esc(g.year)+'年）':''):'未記入';}
   function rGoal(){
     var G=goalOf('_group'), cur=goalOf(gsel), cw=canWrite;
     var h='<section class="goals">'
       +'<div class="gvision"><em>グループの理想</em>'+(cw&&gEdit?'<button type="button" class="gvtxt" data-gperson="_group">':'<p class="gvtxt">')+(G.ideal?esc(G.ideal):'<span class="gnone">未記入</span>')+(cw&&gEdit?'</button>':'</p>')
-      +(cw?'<button type="button" class="btn '+(gEdit?'primary':'ghost')+' gedit" data-gedit>'+(gEdit?'編集を終える':'編集する')+'</button>':'')+'</div>'
+      +'</div>'
       +'<div class="gpeople" role="tablist">'+PEOPLE.map(function(p){var g=goalOf(p);
         return '<button type="button" role="tab" class="gp" data-gsel="'+esc(p)+'" aria-selected="'+(p===gsel)+'"><span class="gpn">'+esc(p)+(g.role?'<small>'+esc(g.role)+'</small>':'')+'</span>'
           +'<span class="gpi">'+(g.ideal?esc(g.ideal):'目指す姿：未記入')+'</span></button>';}).join('')+'</div>'
       +'<div class="ghero"><div class="ghero-m"><em>'+esc(gsel)+'が目指す姿</em><p>'+(cur.ideal?esc(cur.ideal):'<span class="gnone">未記入</span>')+'</p></div>'
       +'<div class="ghero-y"><em>目標年収</em><b>'+incomeTxt(cur)+'</b></div>'
       +(cw&&gEdit?'<button type="button" class="btn ghost" data-gperson="'+esc(gsel)+'">目指す姿・年収を修正</button>':'')+'</div>'
-      +'<div class="gplanh"><h3>そのためにやっていくこと</h3><div class="bsel" role="group" aria-label="数字の期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2].replace(/（.*$/,'')+'</button>';}).join('')+'</div></div>';
+      +'<div class="gplanh"><h3>そのためにやっていくこと</h3>'+(cw?'<button type="button" class="btn '+(gEdit?'primary':'ghost')+' gedit" data-gedit>'+(gEdit?'編集を終える':'追加・修正・削除する')+'</button>':'')+'<div class="bsel" role="group" aria-label="数字の期間">'+Object.keys(BRANGES).map(function(k){return '<button type="button" data-bsel="'+k+'" aria-pressed="'+(k===bsel)+'">'+BRANGES[k][2].replace(/（.*$/,'')+'</button>';}).join('')+'</div></div>';
     if(!cur.tree.length&&!gEdit)h+='<p class="gempty">まだ入力されていません。'+(cw?'「編集する」から追加できます。':'')+'</p>';
     else{
       h+='<ol class="gsteps">'+cur.tree.map(function(n,i){var sp=splitPeriod(n.t),L=gnLink(n);
         return '<li class="gstep"><div class="gsh"><span class="gno">STEP '+(i+1)+'</span>'+(sp.p?'<span class="gper">'+esc(sp.p)+'</span>':'')+'</div>'
-          +(gEdit?'<button type="button" class="gtxt gst" data-gn="'+esc(n.id)+'">'+esc(sp.t)+'</button>':'<h4>'+esc(sp.t)+'</h4>')
+          +'<h4>'+esc(sp.t)+'</h4>'+(gEdit?gActs(n.id,true):'')
           +(L?'<div class="gms">'+L+'</div>':'')+gnSub(n.kids)
-          +(gEdit?'<button type="button" class="gaddk" data-gnadd="'+esc(n.id)+'">＋ やることを追加</button>':'')+'</li>';}).join('')
+          +'</li>';}).join('')
         +(gEdit?'<li class="gstep gnew"><button type="button" class="gaddk" data-gnadd="">＋ STEPを追加</button></li>':'')+'</ol>';
     }
     h+='<p class="gfoot">数字は予実の'+esc(BRANGES[bsel][2])+'（万円・税込）。「準備」はTODOの完了数。</p></section>';
@@ -481,6 +482,9 @@
     var gs=e.target.closest('[data-gsel]');if(gs){gsel=gs.dataset.gsel;try{localStorage.setItem('todo-gsel',gsel);}catch(x){}render();return;}
     if(e.target.closest('[data-gedit]')){gEdit=!gEdit;render();return;}
     var gpz=e.target.closest('[data-gperson]');if(gpz&&canWrite){e.preventDefault();openPerson(gpz.dataset.gperson,gpz);return;}
+    var gdl=e.target.closest('[data-gndel]');if(gdl&&canWrite){e.preventDefault();
+      if(gdl.dataset.armed!=='1'){document.querySelectorAll('[data-gndel][data-armed]').forEach(function(x){x.dataset.armed='';x.textContent='削除';});gdl.dataset.armed='1';gdl.textContent='もう一度押すと削除';return;}
+      var tr=JSON.parse(JSON.stringify(goalOf(gsel).tree||[])),fd=gnFind(tr,gdl.dataset.gndel,null);if(fd){fd.arr.splice(fd.i,1);saveGoal(gsel,{tree:tr}).then(function(){setStatus('削除しました');return load();}).catch(fail);}return;}
     var gna=e.target.closest('[data-gnadd]');if(gna&&canWrite){e.preventDefault();openNode(gna.dataset.gnadd,null,gna);return;}
     var gnn=e.target.closest('[data-gn]');if(gnn&&canWrite){e.preventDefault();openNode(null,gnn.dataset.gn,gnn);return;}
     var sb=e.target.closest('[data-bsel]');if(sb){bsel=sb.dataset.bsel;try{localStorage.setItem('todo-bsel',bsel);}catch(x){}render();return;}
